@@ -576,3 +576,13 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .credits { grid-column: 1 / -1; color: var(--muted); font-size: 13px; text-align: center; margin: 8px 0 0; }
 .watt-tag { color: var(--gold); font-weight: 900; font-size: 16px; margin-top: -6px; }
 .stat-bar i { width: 22px; }
+
+/* ---------- Bonustafel ---------- */
+.tile { position: relative; }
+.tile-tag { position: absolute; top: -9px; right: -6px; padding: 3px 9px; border-radius: 99px; font-size: 12px; font-weight: 900; background: rgba(255, 255, 255, 0.18); color: var(--muted); }
+.tile-tag.hot { background: var(--gold); color: var(--card-ink); animation: needs 0.9s ease-in-out infinite alternate; }
+.qcard.bonus, .race-q.bonus { position: relative; }
+.qcard.bonus::before, .race-q.bonus::before {
+  content: "⚡×2 BONUS"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: var(--gold); color: var(--card-ink); font-size: 14px; font-weight: 900; padding: 3px 10px; border-radius: 99px;
+}

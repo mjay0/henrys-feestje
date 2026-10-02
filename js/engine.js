@@ -27,14 +27,15 @@ export function record(key, correct, ms, fastMs, { jump = false } = {}) {
   return e;
 }
 
-// items: [{ key, make() }] -> functie die steeds een nieuwe vraag geeft.
+// items: [{ key, make(), weight? }] -> functie die steeds een nieuwe vraag geeft.
+// weight: hoe vaak een som mag komen (makkelijke sommen minder vaak).
 export function makePicker(getItems) {
   const recent = [];
   return function next() {
     const items = getItems();
     let pool = items.filter((it) => !recent.includes(it.key));
     if (!pool.length) pool = items;
-    const weights = pool.map((it) => WEIGHT[mastery(it.key).box]);
+    const weights = pool.map((it) => WEIGHT[mastery(it.key).box] * (it.weight || 1));
     let r = Math.random() * weights.reduce((a, b) => a + b, 0);
     let pick = pool[pool.length - 1];
     for (let i = 0; i < pool.length; i++) {

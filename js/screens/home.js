@@ -7,6 +7,7 @@ import * as battery from '../battery.js';
 import { activeSpeaker, activeHenry, nextSpeaker, SPEAKERS, speakerArt, isPlug, ROOMS, roomOpen, room as findRoom, digitsOpen, DIGITS_HOW } from '../rewards.js';
 import { progress, MAX_BOX, mastery } from '../engine.js';
 import { MODULES } from '../modules/index.js';
+import { bonusTable } from '../modules/tafels.js';
 import * as store from '../store.js';
 
 const HELLO = [
@@ -23,6 +24,7 @@ function greeting(sp) {
   const lv = battery.level(sp.id);
   if (lv <= 0) return 'Oh nee, de PartyBox is leeg! 🪫 Laden we hem op?';
   if (lv <= 20) return 'De batterij is bijna leeg… Even opladen?';
+  if (Math.random() < 0.5) return `Vandaag geeft de tafel van ${bonusTable()} dubbele watts! ⚡×2`;
   return pick(HELLO);
 }
 
@@ -142,7 +144,7 @@ export function pickScreen({ mode }) {
     return `<button class="tile ${p.big ? 'wide' : ''} ${p.short ? 'small' : ''}" data-pool="${p.id}">
       <span class="tile-name">${p.short ? `<b>${p.short}</b>` : p.name}</span>
       ${p.sub && !p.short ? `<small>${p.sub}</small>` : ''}
-      ${starsFor(keys)}${rec}</button>`;
+      ${starsFor(keys)}${rec}${p.tag ? `<span class="tile-tag ${p.tag.includes('×2') ? 'hot' : ''}">${p.tag}</span>` : ''}</button>`;
   };
   const raceBar = race ? `<section class="race-opts">
       <div class="chips">${ROOMS.map((r) => roomOpen(r)

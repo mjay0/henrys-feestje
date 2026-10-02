@@ -284,6 +284,7 @@ export function raceScreen({ poolId }) {
     $('.race-q').classList.remove('enter');
     void el.offsetWidth;
     $('.race-q').classList.add('enter');
+    $('.race-q').classList.toggle('bonus', !!q.bonus);
     layoutBalls();
   }
 
@@ -401,7 +402,7 @@ export function raceScreen({ poolId }) {
     streak = ok ? streak + 1 : 0;
     $('.score').textContent = correct;
     const fast = ms <= q.fastMs * 2 + 1500;
-    gain(10 + (fast ? 5 : 0) + (streak >= 5 ? 5 : 0) + (digits ? 5 : 0));
+    gain(((q.value || 10) + (fast ? 5 : 0) + (streak >= 5 ? 5 : 0) + (digits ? 5 : 0)) * (q.bonus ? 2 : 1));
     sfx.slurp(streak);
     const lv = streak >= 10 ? 5 : streak >= 6 ? 4 : streak >= 3 ? 3 : 2;
     if (lv > level) { level = lv; music.setLevel(level); }

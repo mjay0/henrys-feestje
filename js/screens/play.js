@@ -101,6 +101,7 @@ export function playScreen({ mode, poolId }) {
     qtext.textContent = q.text;
     answer.textContent = '';
     qcard.classList.remove('good', 'bad');
+    qcard.classList.toggle('bonus', !!q.bonus);
     qcard.classList.add('enter');
     later(() => qcard.classList.remove('enter'), 250);
     t0 = performance.now();
@@ -162,7 +163,7 @@ export function playScreen({ mode, poolId }) {
       correct++;
       streak++;
       const fast = ms <= q.fastMs;
-      gain(10 + (fast ? 5 : 0) + (streak >= 5 ? 5 : 0));
+      gain(((q.value || 10) + (fast ? 5 : 0) + (streak >= 5 ? 5 : 0)) * (q.bonus ? 2 : 1));
       sfx.correct(streak);
       qcard.classList.add('good');
       spWrap.classList.remove('thump');
