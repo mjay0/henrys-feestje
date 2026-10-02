@@ -1,0 +1,139 @@
+// Startscherm, keuzescherm en het allereerste "Zet de party aan!" scherm.
+import { h, tap, go, pick, fmt } from '../ui.js';
+import { sfx, unlock } from '../audio.js';
+import { henrySVG, speakerSVG } from '../art.js';
+import { activeSpeaker, activeHenry, nextSpeaker, SPEAKERS } from '../rewards.js';
+import { progress, MAX_BOX, mastery } from '../engine.js';
+import { MODULES } from '../modules/index.js';
+import * as store from '../store.js';
+
+const HELLO = [
+  'Hoi Lewis! Zullen we feesten?',
+  'Ik heb zin in een feestje!',
+  'Laden we de speaker op?',
+  'Ik ben er klaar voor! Jij ook?',
+  'Meer sommen = meer BAS!',
+  'Wie gaat er vandaag een record halen?',
+];
+
+export function startScreen() {
+  const el = h(`<div class="start">
+    <div class="start-stage">
+      <div class="henry-wrap bounce">${henrySVG(activeHenry().color, { hat: true })}</div>
+      <div class="speaker-wrap" style="--charge:0.3">${speakerSVG(activeSpeaker())}</div>
+    </div>
+    <h1 class="logo">Henry's <span>Feestje</span></h1>
+    <button class="btn primary huge">🎉 Zet de party aan!</button>
+  </div>`);
+  tap(el.querySelector('button'), () => {
+    unlock();
+    sfx.henry();
+    go(store.get().soundcheckDone ? 'home' : 'soundcheck');
+  }, { sound: false });
+  return { el };
+}
+
+export function homeScreen() {
+  const s = store.get();
+  const sp = activeSpeaker();
+  const hn = activeHenry();
+  const nxt = nextSpeaker();
+  const mins = Math.floor(store.secondsToday() / 60);
+  const goalPct = Math.min(1, store.secondsToday() / store.GOAL_SECONDS);
+  const streak = store.currentStreak();
+  const prevW = Math.max(0, ...SPEAKERS.filter((x) => x.w <= s.watts).map((x) => x.w));
+  const pct = nxt ? Math.min(1, (s.watts - prevW) / (nxt.w - prevW)) : 1;
+
+  const el = h(`<div>
+    <header class="bar">
+      <div class="pill watts">⚡ <b>${fmt(s.watts)}</b></div>
+      <div class="pill goal" style="--p:${goalPct}">
+        <span class="ring"></span>${goalPct >= 1 ? 'Dagdoel gehaald! ✔' : `Vandaag ${mins}/15 min`}
+      </div>
+      ${streak ? `<div class="pill">🔥 ${streak}</div>` : ''}
+      <h1 class="home-title">Henry's <span>Feestje</span></h1>
+      <button class="icon-btn settings" aria-label="Instellingen">⚙️</button>
+    </header>
+    <div class="home">
+      <div class="home-stage">
+        <div class="henry-wrap"><div class="bubble pop">${pick(HELLO)}</div><div class="henry-holder">${henrySVG(hn.color)}</div></div>
+        <div class="speaker-wrap" style="--charge:0.6">${speakerSVG(sp)}</div>
+      </div>
+      <div class="next">
+        ${nxt
+          ? `<div class="next-label">Nog <b>${fmt(nxt.w - s.watts)} ⚡</b> tot de <b>${nxt.name}</b></div>`
+          : '<div class="next-label">Je hebt alle speakers! 🏆</div>'}
+        <div class="progress"><i style="width:${pct * 100}%"></i></div>
+      </div>
+      <div class="menu">
+        <button class="btn primary big" data-go="practice">🔋 Partybox Opladen<small>Oefenen met hulp</small></button>
+        <button class="btn turbo big" data-go="turbo">⏱️ Turbo-Minuut<small>Zo veel mogelijk in 1 minuut</small></button>
+        <button class="btn" data-go="collection">🔊 Mijn speakers</button>
+        <button class="btn" data-go="stars">⭐ Mijn sterren</button>
+      </div>
+    </div>
+  </div>`);
+
+  el.querySelectorAll('[data-go]').forEach((b) => tap(b, () => {
+    const t = b.dataset.go;
+    if (t === 'practice' || t === 'turbo') go('pick', { mode: t });
+    else go(t);
+  }));
+  tap(el.querySelector('.settings'), () => go('settings'));
+  const holder = el.querySelector('.henry-holder');
+  const bubble = el.querySelector('.bubble');
+  tap(holder, () => {
+    sfx.henry();
+    holder.innerHTML = henrySVG(hn.color, { mood: 'wow' });
+    bubble.textContent = pick(['Hihi, dat kietelt!', 'Vroem vroem!', 'Ik zuig alle sommen op!', 'Zullen we gaan?']);
+    setTimeout(() => { holder.innerHTML = henrySVG(hn.color); }, 900);
+  }, { sound: false });
+  const spw = el.querySelector('.speaker-wrap');
+  tap(spw, () => {
+    sfx.correct(0);
+    spw.classList.remove('thump'); void spw.offsetWidth; spw.classList.add('thump');
+  }, { sound: false });
+  return { el };
+}
+
+// Sterren (0-3) of goud voor een groep sommen.
+export function starsFor(keys) {
+  if (keys.length && keys.every((k) => mastery(k).box >= MAX_BOX)) return '<span class="gold">🏆</span>';
+  const p = progress(keys);
+  const n = p >= 0.75 ? 3 : p >= 0.45 ? 2 : p >= 0.15 ? 1 : 0;
+  return `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(3 - n)}</span></span>`;
+}
+
+export function pickScreen({ mode }) {
+  const turbo = mode === 'turbo';
+  const records = store.get().records;
+  const tile = (p) => {
+    const keys = p.items().map((i) => i.key);
+    const rec = turbo && records[p.id] ? `<small>🏆 ${records[p.id]}</small>` : '';
+    return `<button class="tile ${p.big ? 'wide' : ''} ${p.short ? 'small' : ''}" data-pool="${p.id}">
+      <span class="tile-name">${p.short ? `<b>${p.short}</b>` : p.name}</span>
+      ${p.sub && !p.short ? `<small>${p.sub}</small>` : ''}
+      ${starsFor(keys)}${rec}</button>`;
+  };
+  const el = h(`<div>
+    <header class="bar">
+      <button class="icon-btn back" aria-label="Terug">←</button>
+      <h2>${turbo ? '⏱️ Turbo-Minuut' : '🔋 Partybox Opladen'}</h2>
+      <span></span>
+    </header>
+    <div class="pick">
+      ${MODULES.map((m) => {
+        const pools = m.pools();
+        const small = pools.filter((p) => p.short);
+        const rest = pools.filter((p) => !p.short);
+        return `<section><h3>${m.emoji} ${m.name}</h3>
+          <div class="tiles">${rest.map(tile).join('')}</div>
+          ${small.length ? `<div class="tiles tables">${small.map(tile).join('')}</div>` : ''}
+        </section>`;
+      }).join('')}
+    </div>
+  </div>`);
+  tap(el.querySelector('.back'), () => go('home'));
+  el.querySelectorAll('[data-pool]').forEach((b) => tap(b, () => go('play', { mode, poolId: b.dataset.pool })));
+  return { el };
+}
