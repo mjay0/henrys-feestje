@@ -160,11 +160,11 @@ export const SONGS = [
 // Echte nummers (MP3) van Pixabay Music: vrij te gebruiken in een spel.
 // gain = volume gelijktrekken, start = seconden stille intro overslaan.
 export const FILE_SONGS = [
-  { id: 'energiek', name: 'Energy House', artist: 'Paul Yudin', style: 'Vrolijke house', emoji: '🤩', file: 'MP3/paulyudin-house-energetic-upbeat-456608.mp3', bpm: 115, gain: 0.83, start: 14 },
-  { id: 'acid', name: 'Acid House', artist: 'Aurec', style: 'Acid house', emoji: '🧪', file: 'MP3/aurec-acid-house-590194.mp3', bpm: 128, gain: 1.05, start: 0 },
-  { id: 'electro', name: 'Electro House', artist: 'Aurec', style: 'Electro', emoji: '⚡', file: 'MP3/aurec-electro-house-583400.mp3', bpm: 130, gain: 1.16, start: 6 },
-  { id: 'deep', name: 'Deep House', artist: 'Nastelbom', style: 'Deep house', emoji: '🌊', file: 'MP3/nastelbom-deep-house-351574.mp3', bpm: 120, gain: 0.71, start: 6 },
-  { id: 'fashion', name: 'Fashion House', artist: 'SoundSurfer', style: 'Catwalk house', emoji: '😎', file: 'MP3/soundsurfer-fashion-house-468930.mp3', bpm: 120, gain: 0.8, start: 0 },
+  { id: 'energiek', name: 'Energy House', artist: 'Paul Yudin', style: 'Vrolijke house', emoji: '🤩', file: 'mp3/paulyudin-house-energetic-upbeat-456608.mp3', bpm: 115, gain: 0.83, start: 14 },
+  { id: 'acid', name: 'Acid House', artist: 'Aurec', style: 'Acid house', emoji: '🧪', file: 'mp3/aurec-acid-house-590194.mp3', bpm: 128, gain: 1.05, start: 0 },
+  { id: 'electro', name: 'Electro House', artist: 'Aurec', style: 'Electro', emoji: '⚡', file: 'mp3/aurec-electro-house-583400.mp3', bpm: 130, gain: 1.16, start: 6 },
+  { id: 'deep', name: 'Deep House', artist: 'Nastelbom', style: 'Deep house', emoji: '🌊', file: 'mp3/nastelbom-deep-house-351574.mp3', bpm: 120, gain: 0.71, start: 6 },
+  { id: 'fashion', name: 'Fashion House', artist: 'SoundSurfer', style: 'Catwalk house', emoji: '😎', file: 'mp3/soundsurfer-fashion-house-468930.mp3', bpm: 120, gain: 0.8, start: 0 },
 ].map((s) => ({ ...s, w: 0 }));
 
 SONGS.unshift(...FILE_SONGS);
