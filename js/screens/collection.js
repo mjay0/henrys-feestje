@@ -8,7 +8,7 @@ import * as music from '../music.js';
 import * as battery from '../battery.js';
 import * as store from '../store.js';
 
-const bars = (n) => `<span class="stat-bar">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+const bars = (n) => `<span class="stat-bar">${[1, 2, 3, 4, 5, 6].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
 
 function showroom(el, s, timers) {
   let view = Math.max(0, SPEAKERS.findIndex((x) => x.id === s.speaker));
@@ -42,6 +42,7 @@ function showroom(el, s, timers) {
     const mins = Math.round(capacity(sp) / 60);
     spec.innerHTML = `
       <h2>${open ? sp.name : `🔒 ${sp.name}`}</h2>
+      <div class="watt-tag">${fmt(sp.watt)} watt${sp.hex ? ' · nieuw ontwerp 2026' : ''}</div>
       <div class="stats">
         <div>🔊 Bas ${bars(st.bas)}</div>
         <div>💡 Licht ${bars(st.licht)}</div>

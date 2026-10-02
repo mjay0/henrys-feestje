@@ -4,36 +4,50 @@ import { MAX_BOX } from './engine.js';
 import { SONGS } from './songs.js';
 import { speakerSVG } from './art.js';
 
-// Van klein naar groot. `w` = totaal benodigde watts.
-// shape: compact | tower ; woofers: 1 of 2 ; lights: ring | strobe | panel
+// Van klein naar groot, elke stap duidelijk groter. `w` = totaal benodigde watts.
+// tier 1-6 bepaalt de klank (bas) in music.js. hex = nieuw 2026-ontwerp met schuine hoeken.
+// shape: compact | tower ; woofers: 1 of 2 ; lights: strobe | panel
 export const SPEAKERS = [
-  { id: 'encore-essential-2', name: 'PartyBox Encore Essential 2', w: 0, shape: 'compact', woofers: 1, lights: 'ring', tier: 1 },
-  { id: 'on-the-go-2-plus', name: 'PartyBox On-The-Go 2 Plus', w: 400, shape: 'compact', woofers: 1, lights: 'ring', tier: 1, strap: true },
-  { id: 'encore-2', name: 'PartyBox Encore 2', w: 1000, shape: 'compact', woofers: 1, lights: 'strobe', tier: 1 },
-  { id: 'club-120', name: 'PartyBox Club 120', w: 2000, shape: 'compact', woofers: 1, lights: 'strobe', tier: 2, tall: true },
-  { id: 'pb-110', name: 'PartyBox 110', w: 4000, shape: 'tower', woofers: 2, lights: 'ring', tier: 2 },
-  { id: 'pb-310', name: 'PartyBox 310', w: 7000, shape: 'tower', woofers: 2, lights: 'strobe', tier: 3, wheels: true },
-  { id: 'stage-320', name: 'PartyBox Stage 320', w: 11000, shape: 'tower', woofers: 2, lights: 'strobe', tier: 3, wheels: true },
-  { id: 'pb-520', name: 'PartyBox 520', w: 16000, shape: 'tower', woofers: 2, lights: 'panel', tier: 3, wheels: true },
-  { id: 'pb-710', name: 'PartyBox 710', w: 23000, shape: 'tower', woofers: 2, lights: 'panel', tier: 4, wheels: true, big: true },
-  { id: 'pb-720', name: 'PartyBox 720', w: 32000, shape: 'tower', woofers: 2, lights: 'panel', tier: 4, wheels: true, big: true },
-  { id: 'pb-1000', name: 'PartyBox 1000', w: 44000, shape: 'tower', woofers: 2, lights: 'panel', tier: 4, wheels: true, big: true, pads: true },
-  { id: 'ultimate', name: 'PartyBox Ultimate', w: 60000, shape: 'tower', woofers: 2, lights: 'panel', tier: 5, wheels: true, big: true, pads: true },
+  { id: 'encore-2', name: 'PartyBox Encore 2', watt: 100, w: 0, shape: 'compact', woofers: 1, lights: 'strobe', tier: 1, light: 2 },
+  { id: 'pb-130', name: 'PartyBox 130', watt: 200, w: 1500, shape: 'compact', woofers: 1, lights: 'strobe', tier: 2, tall: true, hex: true, light: 3 },
+  { id: 'pb-330', name: 'PartyBox 330', watt: 280, w: 5000, shape: 'tower', woofers: 2, lights: 'strobe', tier: 3, wheels: true, hex: true, light: 4 },
+  { id: 'pb-520', name: 'PartyBox 520', watt: 400, w: 12000, shape: 'tower', woofers: 2, lights: 'panel', tier: 4, wheels: true, light: 4 },
+  { id: 'pb-720', name: 'PartyBox 720', watt: 800, w: 25000, shape: 'tower', woofers: 2, lights: 'panel', tier: 5, wheels: true, big: true, light: 5 },
+  { id: 'ultimate', name: 'PartyBox Ultimate', watt: 1100, w: 45000, shape: 'tower', woofers: 2, lights: 'panel', tier: 6, wheels: true, big: true, pads: true, light: 6 },
 ];
 
-export const speaker = (id) => SPEAKERS.find((s) => s.id === id) || SPEAKERS[0];
+// Oude speakers (van vóór de opschoning) -> de nieuwe die er het meest op lijkt.
+const OLD = {
+  'encore-essential-2': 'encore-2', 'on-the-go-2-plus': 'encore-2',
+  'club-120': 'pb-130', 'pb-110': 'pb-130',
+  'pb-310': 'pb-330', 'stage-320': 'pb-330',
+  'pb-710': 'pb-720', 'pb-1000': 'pb-720',
+};
+
+export const speaker = (id) => SPEAKERS.find((s) => s.id === (OLD[id] || id)) || SPEAKERS[0];
+
+// Zet een opgeslagen oude speaker om; is die nog niet vrij, dan de grootste die wel vrij is.
+export function migrateSpeaker() {
+  const s = store.get();
+  if (SPEAKERS.some((x) => x.id === s.speaker)) return;
+  let sp = speaker(s.speaker);
+  if (s.watts < sp.w) sp = [...SPEAKERS].reverse().find((x) => s.watts >= x.w) || SPEAKERS[0];
+  if (s.lights[s.speaker] && !s.lights[sp.id]) s.lights[sp.id] = s.lights[s.speaker];
+  s.speaker = sp.id;
+  store.save();
+}
 
 // De Ultimate werkt (net als echt) alleen met een stekker: nooit leeg.
 export const isPlug = (s) => s.id === 'ultimate';
 // Hoe lang een volle batterij muziek kan maken (seconden): groter = langer.
-export const capacity = (s) => ({ 1: 360, 2: 420, 3: 500, 4: 600 }[s.tier] || 600);
+export const capacity = (s) => ({ 1: 360, 2: 400, 3: 460, 4: 530, 5: 600 }[s.tier] || 600);
 
-// Speakerkaart: balkjes van 1 t/m 5.
+// Speakerkaart: balkjes van 1 t/m 6.
 export function stats(s) {
   return {
     bas: s.tier,
-    licht: Math.min(5, { ring: 2, strobe: 3, panel: 4 }[s.lights] + (s.pads ? 1 : 0)),
-    batterij: isPlug(s) ? 5 : s.tier,
+    licht: s.light,
+    batterij: isPlug(s) ? 6 : s.tier,
   };
 }
 

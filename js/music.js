@@ -15,28 +15,41 @@ let musicOn = true;
 const VOLUME = 0.6;
 let toneHP = null;
 let toneShelf = null;
+let tonePunch = null;
+let toneMid = null;
+let toneLP = null;
 let powerLP = null;
 let toneGain = null;
 let tier = 1;
 let maxLevel = 5;
 let gate = null;     // mag er muziek spelen? (batterij)
 
-// Speaker-klank per grootte (tier 1 = klein, 5 = Ultimate).
+// Speaker-klank per grootte (tier 1 = Encore 2 ... 6 = Ultimate).
+// Hoorbaar gemaakt voor iPad-speakers: kleine speakers klinken dun en
+// "telefoonachtig", grote krijgen stoot rond 150-250 Hz (dat kan een iPad
+// wel laten horen) plus diepe bas voor koptelefoon of Bluetooth-speaker.
+//   hp = lage tonen eraf onder (Hz), punch = stoot rond 200 Hz (dB),
+//   shelf = diepe bas (dB), lp = hoge tonen eraf boven (Hz), mid = "telefoon"-kleur (dB)
 const TONE = {
-  1: { hp: 140, shelf: 0, gain: 0.85, max: 4 },
-  2: { hp: 90, shelf: 1.5, gain: 0.92, max: 5 },
-  3: { hp: 55, shelf: 3, gain: 1, max: 5 },
-  4: { hp: 35, shelf: 4.5, gain: 1.05, max: 5 },
-  5: { hp: 25, shelf: 6, gain: 1.1, max: 5 },
+  1: { hp: 320, punch: -4, shelf: 0, lp: 6500, mid: 4, gain: 0.82, max: 4 },
+  2: { hp: 190, punch: 0, shelf: 0, lp: 11000, mid: 2, gain: 0.88, max: 5 },
+  3: { hp: 110, punch: 3, shelf: 2, lp: 16000, mid: 0, gain: 0.92, max: 5 },
+  4: { hp: 70, punch: 5, shelf: 4, lp: 20000, mid: 0, gain: 1, max: 5 },
+  5: { hp: 45, punch: 7, shelf: 6, lp: 20000, mid: -1, gain: 1.06, max: 5 },
+  6: { hp: 25, punch: 9, shelf: 8, lp: 20000, mid: -1.5, gain: 1.12, max: 5 },
 };
 
 function applyTone() {
   const t = TONE[tier] || TONE[1];
   maxLevel = t.max;
   if (!toneHP) return;
-  toneHP.frequency.setTargetAtTime(t.hp, ctx.currentTime, 0.05);
-  toneShelf.gain.setTargetAtTime(t.shelf, ctx.currentTime, 0.05);
-  toneGain.gain.setTargetAtTime(t.gain, ctx.currentTime, 0.05);
+  const at = (p, v) => p.setTargetAtTime(v, ctx.currentTime, 0.05);
+  at(toneHP.frequency, t.hp);
+  at(tonePunch.gain, t.punch);
+  at(toneShelf.gain, t.shelf);
+  at(toneLP.frequency, t.lp);
+  at(toneMid.gain, t.mid);
+  at(toneGain.gain, t.gain);
 }
 
 export function setTone(n) { tier = n; applyTone(); }
@@ -54,16 +67,30 @@ function setup() {
   // Klank van de speaker: kleine speakers minder bas, grote meer.
   toneHP = ctx.createBiquadFilter();
   toneHP.type = 'highpass';
+  toneHP.Q.value = 0.9;
   toneShelf = ctx.createBiquadFilter();
   toneShelf.type = 'lowshelf';
-  toneShelf.frequency.value = 120;
+  toneShelf.frequency.value = 90;
+  tonePunch = ctx.createBiquadFilter();
+  tonePunch.type = 'peaking';
+  tonePunch.frequency.value = 190;
+  tonePunch.Q.value = 0.8;
+  toneMid = ctx.createBiquadFilter();
+  toneMid.type = 'peaking';
+  toneMid.frequency.value = 1600;
+  toneMid.Q.value = 0.7;
+  toneLP = ctx.createBiquadFilter();
+  toneLP.type = 'lowpass';
   powerLP = ctx.createBiquadFilter();
   powerLP.type = 'lowpass';
   powerLP.frequency.value = 20000;
   toneGain = ctx.createGain();
   out.connect(toneHP);
   toneHP.connect(toneShelf);
-  toneShelf.connect(powerLP);
+  toneShelf.connect(tonePunch);
+  tonePunch.connect(toneMid);
+  toneMid.connect(toneLP);
+  toneLP.connect(powerLP);
   powerLP.connect(toneGain);
   toneGain.connect(a.master);
   applyTone();

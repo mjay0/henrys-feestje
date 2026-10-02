@@ -28,7 +28,7 @@ const fresh = () => ({
   mastery: {},           // sleutel -> { box, seen, ok, ms }
   unlockedSkills: {},    // module-id -> aantal vrijgespeelde stappen
   records: {},           // pool-id -> beste Turbo-Minuut score
-  speaker: 'encore-essential-2',
+  speaker: 'encore-2',
   henry: 'henry',
   henrys: ['henry'],
   days: {},              // 'JJJJ-MM-DD' -> seconden geoefend

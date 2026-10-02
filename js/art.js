@@ -124,7 +124,16 @@ export function speakerSVG(s, show = 'regenboog') {
   </linearGradient></defs>
   <ellipse cx="${W / 2}" cy="${H - 4}" rx="${W * 0.45}" ry="6" fill="#000" opacity="0.35"/>
   ${handle}
-  <rect x="${bodyX}" y="${bodyY}" width="${bw}" height="${bh}" rx="${tower ? 26 : 34}" fill="url(#${id}g)" stroke="#33333c" stroke-width="3"/>
+  ${s.hex
+    ? (() => {
+      // 2026-ontwerp ("hexangle"): schuine hoeken en een oranje rand
+      const c = 30;
+      const x2 = bodyX + bw;
+      const y2 = bodyY + bh;
+      const pts = `${bodyX + c},${bodyY} ${x2 - c},${bodyY} ${x2},${bodyY + c} ${x2},${y2 - c} ${x2 - c},${y2} ${bodyX + c},${y2} ${bodyX},${y2 - c} ${bodyX},${bodyY + c}`;
+      return `<polygon points="${pts}" fill="url(#${id}g)" stroke="#ff6a00" stroke-width="3" stroke-linejoin="round"/>`;
+    })()
+    : `<rect x="${bodyX}" y="${bodyY}" width="${bw}" height="${bh}" rx="${tower ? 26 : 34}" fill="url(#${id}g)" stroke="#33333c" stroke-width="3"/>`}
   ${strobes}${pads}${tweeter}${woofers}
   <rect x="${W / 2 - 18}" y="${bodyY + bh - 18}" width="36" height="9" rx="4.5" fill="#ff6a00"/>
   ${wheels}

@@ -4,6 +4,7 @@ import { setEnabled, resume } from './audio.js';
 import * as music from './music.js';
 import { raceScreen } from './screens/race.js';
 import * as battery from './battery.js';
+import { migrateSpeaker } from './rewards.js';
 import { startScreen, homeScreen, pickScreen } from './screens/home.js';
 import { playScreen } from './screens/play.js';
 import { partyScreen } from './screens/party.js';
@@ -16,6 +17,7 @@ store.load();
 if (store.isTest()) document.body.insertAdjacentHTML('beforeend', '<div class="test-badge">🧪 TESTMODUS</div>');
 setEnabled(store.get().settings.sound);
 music.setMusicEnabled(store.get().settings.music);
+migrateSpeaker();
 battery.init();
 
 register('start', startScreen);
