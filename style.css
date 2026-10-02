@@ -476,3 +476,10 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .float.penalty { color: var(--red); font-size: 34px; }
 .timebar.hit { box-shadow: 0 0 0 3px var(--red); }
 .race-intro .cat-warn { color: var(--gold); font-size: 0.4em; }
+
+/* ---------- Testmodus ---------- */
+.test-badge {
+  position: fixed; top: max(4px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 50;
+  background: var(--gold); color: var(--card-ink); font-weight: 900; font-size: 13px;
+  padding: 3px 12px; border-radius: 99px; pointer-events: none; opacity: 0.9;
+}

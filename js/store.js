@@ -1,6 +1,20 @@
 // Alle voortgang staat lokaal op het apparaat (localStorage).
-const KEY = 'henrys-feestje';
+// Testmodus (voor ouders) gebruikt een apart profiel waarin alles open is,
+// zodat Lewis' echte voortgang niet verandert.
+const MODE_KEY = 'henrys-feestje-mode';
+const testMode = (() => { try { return localStorage.getItem(MODE_KEY) === 'test'; } catch { return false; } })();
+const KEY = testMode ? 'henrys-feestje-test' : 'henrys-feestje';
 const VERSION = 1;
+
+export const isTest = () => testMode;
+
+export function setTestMode(on) {
+  try {
+    if (on) localStorage.setItem(MODE_KEY, 'test');
+    else localStorage.removeItem(MODE_KEY);
+  } catch {}
+  location.reload();
+}
 
 const fresh = () => ({
   version: VERSION,
@@ -24,7 +38,20 @@ const fresh = () => ({
   settings: { sound: true, music: true },
 });
 
-let state = fresh();
+// Testprofiel: alles vrijgespeeld (speakers, nummers, kamers, Cijfer-modus, Henry's).
+const freshTest = () => ({
+  ...fresh(),
+  soundcheckDone: true,
+  watts: 100_000,
+  henrys: ['henry', 'hetty', 'george', 'james', 'charles'],
+  seenSongs: ['house', 'stomp', 'techno', 'tropisch', 'chip'],
+  unlockedSkills: { plus: 5, min: 5 },
+  race: { played: 10, best: {}, bestAny: 20 },
+});
+
+const initial = () => (testMode ? freshTest() : fresh());
+
+let state = initial();
 
 function migrate(s) {
   const base = fresh();
@@ -40,9 +67,9 @@ function migrate(s) {
 export function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    state = raw ? migrate(JSON.parse(raw)) : fresh();
+    state = raw ? migrate(JSON.parse(raw)) : initial();
   } catch {
-    state = fresh();
+    state = initial();
   }
   try { navigator.storage?.persist?.(); } catch {}
   return state;
@@ -53,7 +80,7 @@ export function save() {
 }
 
 export function reset() {
-  state = fresh();
+  state = initial();
   save();
 }
 

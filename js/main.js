@@ -12,6 +12,7 @@ import { starsScreen } from './screens/stars.js';
 import { settingsScreen } from './screens/settings.js';
 
 store.load();
+if (store.isTest()) document.body.insertAdjacentHTML('beforeend', '<div class="test-badge">🧪 TESTMODUS</div>');
 setEnabled(store.get().settings.sound);
 music.setMusicEnabled(store.get().settings.music);
 
