@@ -3,10 +3,10 @@
 import { h, tap, go, floatText, pick, fmt } from '../ui.js';
 import { sfx } from '../audio.js';
 import * as music from '../music.js';
-import { henrySVG } from '../art.js';
+import { henrySVG, speakerSVG, furnitureSVG, catSVG } from '../art.js';
 import { makePicker, record } from '../engine.js';
 import { findPool, afterRecord } from '../modules/index.js';
-import { activeHenry, addWatts, room as findRoom, ROOMS, roomOpen, digitsOpen } from '../rewards.js';
+import { activeHenry, activeSpeaker, addWatts, room as findRoom, ROOMS, roomOpen, digitsOpen } from '../rewards.js';
 import * as store from '../store.js';
 
 const RACE_MS = 90_000;
@@ -16,6 +16,65 @@ const POWERS = [
   { id: 'magnet', emoji: '🧲', name: 'Magneet!', ms: 7_000 },
 ];
 const PRAISE = ['Slurp!', 'Hap!', 'Opgezogen!', 'Lekker!', 'Yes!', 'Mjam!'];
+
+// Meubels per kamer. x/y = midden als deel van de breedte/hoogte van de vloer,
+// w/h = grootte als deel van de kortste zijde (zo blijven ze in verhouding).
+// Het midden blijft vrij: daar start Henry.
+const LAYOUT = {
+  woonkamer: [
+    { kind: 'sofa', x: 0.2, y: 0.2, w: 0.5, h: 0.28 },
+    { kind: 'plant', x: 0.9, y: 0.22, w: 0.14, h: 0.22 },
+    { kind: 'tv', x: 0.78, y: 0.8, w: 0.38, h: 0.29 },
+  ],
+  keuken: [
+    { kind: 'table', x: 0.27, y: 0.75, w: 0.46, h: 0.28 },
+    { kind: 'fridge', x: 0.88, y: 0.28, w: 0.17, h: 0.31 },
+    { kind: 'plant', x: 0.1, y: 0.2, w: 0.13, h: 0.2 },
+  ],
+  slaapkamer: [
+    { kind: 'bed', x: 0.22, y: 0.25, w: 0.5, h: 0.3 },
+    { kind: 'toybox', x: 0.82, y: 0.78, w: 0.26, h: 0.24 },
+    { kind: 'plant', x: 0.9, y: 0.2, w: 0.13, h: 0.2 },
+  ],
+  disco: [
+    { kind: 'djbooth', x: 0.5, y: 0.13, w: 0.52, h: 0.26 },
+    { kind: 'speaker', x: 0.08, y: 0.75, w: 0.17, h: 0.3 },
+    { kind: 'speaker', x: 0.92, y: 0.75, w: 0.17, h: 0.3 },
+  ],
+};
+// James de kat: snelheid per kamer (px per seconde als deel van de breedte).
+const CAT_SPEED = { woonkamer: 0.07, keuken: 0.085, slaapkamer: 0.1, disco: 0.12 };
+const CAT_PENALTY_MS = 3000;
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Duw een cirkel (o, straal r) uit een rechthoek; geeft de normaal terug bij botsing.
+function pushOut(o, r, rc) {
+  const cx = clamp(o.x, rc.l, rc.r);
+  const cy = clamp(o.y, rc.t, rc.b);
+  let dx = o.x - cx;
+  let dy = o.y - cy;
+  let d = Math.hypot(dx, dy);
+  if (d >= r) return null;
+  if (d === 0) {
+    // middelpunt zit erin: kortste weg naar buiten
+    const opts = [[o.x - rc.l, -1, 0], [rc.r - o.x, 1, 0], [o.y - rc.t, 0, -1], [rc.b - o.y, 0, 1]];
+    const [, nx, ny] = opts.sort((a, b) => a[0] - b[0])[0];
+    o.x = nx ? (nx < 0 ? rc.l - r : rc.r + r) : o.x;
+    o.y = ny ? (ny < 0 ? rc.t - r : rc.b + r) : o.y;
+    return { nx, ny };
+  }
+  dx /= d;
+  dy /= d;
+  o.x = cx + dx * r;
+  o.y = cy + dy * r;
+  return { nx: dx, ny: dy };
+}
+
+function bounce(b, n) {
+  const dot = b.vx * n.nx + b.vy * n.ny;
+  if (dot < 0) { b.vx -= 2 * dot * n.nx; b.vy -= 2 * dot * n.ny; }
+}
 
 const shuffle = (a) => a.map((v) => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
 
@@ -48,6 +107,8 @@ export function raceScreen({ poolId }) {
     <div class="race-q"><span class="rq-text"></span> = <span class="rq-ans"></span></div>
     <div class="arena">
       <div class="powers"></div>
+      ${(LAYOUT[rm.id] || []).map((p) => `<div class="prop prop-${p.kind}">${p.kind === 'speaker' ? speakerSVG(activeSpeaker()) : furnitureSVG(p.kind)}</div>`).join('')}
+      <div class="james walk"><div class="james-flip">${catSVG()}</div><div class="bubble"></div></div>
       <div class="racer"><div class="racer-flip">${henrySVG(hn.color)}</div><div class="bubble"></div></div>
     </div>
     <div class="overlay countdown hidden"></div>
@@ -65,6 +126,12 @@ export function raceScreen({ poolId }) {
   let W = 0;
   let H = 0;
   const henry = { x: 0, y: 0, r: 48, face: 1 };
+  const propEls = [...el.querySelectorAll('.prop')];
+  let props = [];             // botsrechthoeken van de meubels
+  const catEl = $('.james');
+  const catFlip = $('.james-flip');
+  const catBubble = $('.james .bubble');
+  const cat = { x: 0, y: 0, r: 30, tx: 0, ty: 0, face: 1, state: 'walk', until: 0, fleeUntil: 0, safeUntil: 0, stuck: 0 };
   const target = { x: 0, y: 0 };
   let balls = [];
   let power = null;           // power-up die rondrolt
@@ -97,7 +164,30 @@ export function raceScreen({ poolId }) {
     W = r.width;
     H = r.height;
     henry.r = Math.max(36, Math.min(56, W / 18));
+    cat.r = henry.r * 0.75;
+    layoutProps();
   }
+
+  // Zet de meubels neer en bereken hun botsrechthoek (iets kleiner dan de tekening).
+  function layoutProps() {
+    const U = Math.min(W, H);
+    props = (LAYOUT[rm.id] || []).map((p, i) => {
+      const w = p.w * U;
+      const hh = p.h * U;
+      const x = clamp(p.x * W, w / 2 + 6, W - w / 2 - 6);
+      const y = clamp(p.y * H, hh / 2 + 6, H - hh / 2 - 6);
+      const e = propEls[i];
+      e.style.width = `${w}px`;
+      e.style.height = `${hh}px`;
+      e.style.transform = `translate(${x - w / 2}px, ${y - hh / 2}px)`;
+      const ix = w * 0.06;
+      const iy = hh * 0.08;
+      return { l: x - w / 2 + ix, r: x + w / 2 - ix, t: y - hh / 2 + iy, b: y + hh / 2 - iy };
+    });
+  }
+
+  const inProp = (x, y, r) => props.some((rc) => pushOut({ x, y }, r, rc));
+  const solid = (o, r) => { let n = null; props.forEach((rc) => { n = pushOut(o, r, rc) || n; }); return n; };
 
   function say(text, mood) {
     bubble.textContent = text;
@@ -115,7 +205,7 @@ export function raceScreen({ poolId }) {
   // ---------- Stofballen ----------
   function ballSize() { return Math.max(72, Math.min(96, W / 10)); }
 
-  function spawnBall(value, isGood) {
+  function spawnBall(value, good) {
     const r = ballSize() / 2;
     let x = 0;
     let y = 0;
@@ -124,12 +214,13 @@ export function raceScreen({ poolId }) {
       y = r + Math.random() * (H - 2 * r);
       const farHenry = Math.hypot(x - henry.x, y - henry.y) > henry.r + r + 110;
       const farOthers = balls.every((b) => b.dead || Math.hypot(x - b.x, y - b.y) > b.r + r + 14);
-      if (farHenry && farOthers) break;
+      const free = !inProp(x, y, r + 6) && Math.hypot(x - cat.x, y - cat.y) > cat.r + r + 20;
+      if (farHenry && farOthers && free) break;
     }
     const a = Math.random() * Math.PI * 2;
     const sp = rm.speed * (0.6 + Math.random() * 0.6);
     const b = {
-      x, y, r, value, good: isGood, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dead: false,
+      x, y, r, value, good, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, base: sp, dead: false,
       el: h(`<div class="dust" style="width:${2 * r}px;height:${2 * r}px">
         <i class="eye l"></i><i class="eye r"></i><span>${value}</span></div>`),
     };
@@ -150,12 +241,15 @@ export function raceScreen({ poolId }) {
 
   function needed() { return digits ? String(q.answer)[filled.length] : String(q.answer); }
 
+  // Cijfer-modus: alle cijfers van het antwoord liggen meteen klaar (plus een
+  // paar andere cijfers); er wordt niets opnieuw neergelegd tussen de cijfers.
   function layoutBalls() {
     clearBalls();
-    const want = needed();
     if (digits) {
-      const others = shuffle('0123456789'.split('').filter((d) => d !== want)).slice(0, rm.balls - 1);
-      spawnBall(want, true);
+      const ans = String(q.answer).split('');
+      const others = shuffle('0123456789'.split('').filter((d) => !ans.includes(d)))
+        .slice(0, Math.max(2, rm.balls - ans.length));
+      ans.forEach((d) => spawnBall(d, true));
       others.forEach((d) => spawnBall(d, false));
     } else {
       spawnBall(q.answer, true);
@@ -164,7 +258,12 @@ export function raceScreen({ poolId }) {
     if (wrongs >= 2) hintBall();
   }
 
-  function hintBall() { balls.forEach((b) => b.good && b.el.classList.add('hint')); }
+  // Goed = het cijfer (of getal) dat nu aan de beurt is.
+  const isGood = (b) => (digits ? b.value === needed() : b.good);
+
+  function hintBall() {
+    balls.forEach((b) => b.el.classList.toggle('hint', !b.dead && isGood(b)));
+  }
 
   function showAns() {
     if (!digits) { qAns.textContent = '?'; return; }
@@ -230,35 +329,61 @@ export function raceScreen({ poolId }) {
     floatText(arena, `+${n} ⚡`, 'watt');
   }
 
-  function suck(b) {
+  function sneeze() {
+    wrongs++;
+    streak = 0;
+    level = Math.max(2, level - 1);
+    music.setLevel(level);
+    sneezeUntil = performance.now() + 1100;
+    sfx.sneeze();
+    say('Hatsjoe! 🤧', 'sad');
+    const puff = h('<div class="puff"></div>');
+    puff.style.transform = `translate(${henry.x - 60}px, ${henry.y - 60}px)`;
+    arena.appendChild(puff);
+    setTimeout(() => puff.remove(), 900);
+    if (wrongs >= 2) hintBall();
+  }
+
+  function swallow(b) {
     b.dead = true;
     b.el.classList.add('sucked');
     b.el.style.transform = `translate(${henry.x - b.r}px, ${henry.y - b.r}px) scale(0.1)`;
     setTimeout(() => b.el.remove(), 260);
     balls = balls.filter((x) => x !== b);
+  }
 
-    if (!b.good) {
-      wrongs++;
-      streak = 0;
-      level = Math.max(2, level - 1);
-      music.setLevel(level);
-      sneezeUntil = performance.now() + 1100;
-      sfx.sneeze();
-      say('Hatsjoe! 🤧', 'sad');
-      const puff = h('<div class="puff"></div>');
-      puff.style.transform = `translate(${henry.x - 60}px, ${henry.y - 60}px)`;
-      arena.appendChild(puff);
-      setTimeout(() => puff.remove(), 900);
-      if (wrongs === 2) hintBall();
+  function suck(b) {
+    const now = performance.now();
+    if ((b.noHitUntil || 0) > now) return;
+
+    if (!isGood(b)) {
+      if (digits) {
+        // Fout cijfer: wegblazen, maar blijft liggen (er verspringt niets).
+        const dx = b.x - henry.x;
+        const dy = b.y - henry.y;
+        const d = Math.hypot(dx, dy) || 1;
+        b.x = henry.x + (dx / d) * (henry.r + b.r + 30);
+        b.y = henry.y + (dy / d) * (henry.r + b.r + 30);
+        const sp = Math.max(160, rm.speed * 4);
+        b.vx = (dx / d) * sp;
+        b.vy = (dy / d) * sp;
+        b.slowDown = true;
+        b.noHitUntil = now + 900;
+        sneeze();
+        return;
+      }
+      swallow(b);
+      sneeze();
       if (balls.filter((x) => !x.dead).length <= 1) later(layoutBalls, 400);
       return;
     }
 
+    swallow(b);
     if (digits && filled.length + 1 < String(q.answer).length) {
       filled += b.value;
       sfx.slurp(streak);
       showAns();
-      later(layoutBalls, 200);
+      if (wrongs >= 2) hintBall();
       return;
     }
 
@@ -285,6 +410,100 @@ export function raceScreen({ poolId }) {
     later(newQuestion, 250);
   }
 
+  // ---------- James de kat ----------
+  function catTarget(awayFrom = null) {
+    for (let i = 0; i < 30; i++) {
+      const x = cat.r + Math.random() * (W - 2 * cat.r);
+      const y = cat.r + Math.random() * (H - 2 * cat.r);
+      if (inProp(x, y, cat.r + 8)) continue;
+      if (awayFrom && Math.hypot(x - awayFrom.x, y - awayFrom.y) < Math.min(W, H) * 0.45) continue;
+      cat.tx = x;
+      cat.ty = y;
+      return;
+    }
+  }
+
+  function placeCat() {
+    // Start in een hoek, ver van Henry.
+    const corners = shuffle([[0.1, 0.5], [0.9, 0.5], [0.5, 0.9], [0.3, 0.1], [0.7, 0.9]]);
+    for (const [fx, fy] of corners) {
+      const x = fx * W;
+      const y = fy * H;
+      if (!inProp(x, y, cat.r + 8) && Math.hypot(x - henry.x, y - henry.y) > Math.min(W, H) * 0.3) {
+        cat.x = x;
+        cat.y = y;
+        break;
+      }
+    }
+    catTarget();
+  }
+
+  function updateCat(dt, now) {
+    const fleeing = now < cat.fleeUntil;
+    if (cat.state === 'sit' && now > cat.until) { cat.state = 'walk'; catTarget(); }
+    if (cat.state === 'walk') {
+      const dx = cat.tx - cat.x;
+      const dy = cat.ty - cat.y;
+      const d = Math.hypot(dx, dy);
+      const sp = W * (CAT_SPEED[rm.id] || 0.08) * (fleeing ? 3.5 : 1);
+      if (d < 6) {
+        if (!fleeing && Math.random() < 0.45) { cat.state = 'sit'; cat.until = now + 1500 + Math.random() * 2500; }
+        else catTarget();
+      } else {
+        const ox = cat.x;
+        const oy = cat.y;
+        cat.x += (dx / d) * Math.min(d, sp * dt);
+        cat.y += (dy / d) * Math.min(d, sp * dt);
+        if (Math.abs(dx) > 2) cat.face = dx < 0 ? -1 : 1;
+        solid(cat, cat.r);
+        cat.x = clamp(cat.x, cat.r, W - cat.r);
+        cat.y = clamp(cat.y, cat.r, H - cat.r);
+        // vastgelopen tegen een meubel? nieuw doel kiezen
+        cat.stuck = Math.hypot(cat.x - ox, cat.y - oy) < sp * dt * 0.3 ? cat.stuck + dt : 0;
+        if (cat.stuck > 0.4) { cat.stuck = 0; catTarget(); }
+      }
+    }
+    catEl.classList.toggle('walk', cat.state === 'walk');
+    catEl.classList.toggle('flee', fleeing);
+    const w = cat.r * 3.4;
+    catEl.style.width = `${w}px`;
+    catEl.style.transform = `translate(${cat.x - w / 2}px, ${cat.y - w * 0.42}px)`;
+    catFlip.style.transform = `scaleX(${cat.face})`;
+
+    // Henry raakt James aan?
+    if (now > cat.safeUntil && Math.hypot(henry.x - cat.x, henry.y - cat.y) < henry.r * 0.8 + cat.r * 0.8) catHit(now);
+  }
+
+  function catHit(now) {
+    cat.safeUntil = now + 2500;
+    cat.fleeUntil = now + 1400;
+    cat.state = 'walk';
+    catTarget(henry);
+    endAt -= CAT_PENALTY_MS;
+    streak = 0;
+    level = Math.max(2, level - 1);
+    music.setLevel(level);
+    sneezeUntil = now + 1300;
+    sfx.meow();
+    catBubble.textContent = 'MIAUW! 🙀';
+    catBubble.classList.remove('pop');
+    void catBubble.offsetWidth;
+    catBubble.classList.add('pop');
+    setTimeout(() => { catBubble.textContent = ''; }, 1300);
+    say('Oeps! Sorry James!', 'sad');
+    // Henry schrikt en stuitert een stukje terug
+    const dx = henry.x - cat.x;
+    const dy = henry.y - cat.y;
+    const d = Math.hypot(dx, dy) || 1;
+    henry.x += (dx / d) * 40;
+    henry.y += (dy / d) * 40;
+    target.x = henry.x;
+    target.y = henry.y;
+    floatText(arena, '−3 sec ⏱️', 'penalty');
+    $('.timebar').classList.add('hit');
+    later(() => $('.timebar').classList.remove('hit'), 600);
+  }
+
   // ---------- Spel-lus ----------
   function frame(ts) {
     if (!running) return;
@@ -302,6 +521,11 @@ export function raceScreen({ poolId }) {
       henry.y += (dy / dist) * stepLen;
       if (Math.abs(dx) > 4) henry.face = dx < 0 ? -1 : 1;
     }
+    // Meubels: Henry glijdt er langs, maar kan er niet doorheen.
+    henry.x = clamp(henry.x, henry.r * 0.6, W - henry.r * 0.6);
+    henry.y = clamp(henry.y, henry.r * 0.6, H - henry.r * 0.6);
+    solid(henry, henry.r * 0.75);
+    updateCat(dt, now);
     const size = henry.r * 2.4;
     racerEl.style.width = `${size}px`;
     racerEl.style.transform = `translate(${henry.x - size / 2}px, ${henry.y - size * 0.55}px)`;
@@ -324,6 +548,12 @@ export function raceScreen({ poolId }) {
         b.x += (hx / d) * 90 * dt;
         b.y += (hy / d) * 90 * dt;
       }
+      if (b.slowDown) {
+        const sp = Math.hypot(b.vx, b.vy);
+        if (sp > b.base) { b.vx *= 0.96; b.vy *= 0.96; } else b.slowDown = false;
+      }
+      const n = solid(b, b.r);
+      if (n) bounce(b, n);
       if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx); }
       if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
       if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy); }
@@ -337,6 +567,8 @@ export function raceScreen({ poolId }) {
       power.y = Math.max(power.r, Math.min(H - power.r, power.y + power.vy * dt));
       if (power.x <= power.r || power.x >= W - power.r) power.vx *= -1;
       if (power.y <= power.r || power.y >= H - power.r) power.vy *= -1;
+      const pn = solid(power, power.r);
+      if (pn) bounce(power, pn);
       power.el.style.transform = `translate(${power.x - power.r}px, ${power.y - power.r}px)`;
       if (Math.hypot(henry.x - power.x, henry.y - power.y) < henry.r + power.r) takePower();
       else if (now > power.until) { power.el.remove(); power = null; }
@@ -368,7 +600,7 @@ export function raceScreen({ poolId }) {
     point(e);
   });
   arena.addEventListener('pointermove', (e) => { if (e.buttons || e.pointerType === 'touch') point(e); });
-  const onResize = () => measure();
+  const onResize = () => { measure(); solid(henry, henry.r * 0.75); solid(cat, cat.r); };
   window.addEventListener('resize', onResize);
 
   tap($('.back'), () => finish(true));
@@ -412,9 +644,13 @@ export function raceScreen({ poolId }) {
     henry.y = H / 2;
     target.x = henry.x;
     target.y = henry.y;
+    placeCat();
+    updateCat(0, performance.now());
     const ov = $('.countdown');
     ov.classList.remove('hidden');
-    ov.innerHTML = `<div class="race-intro">${digits ? '🔢 Cijfer-modus' : `${rm.emoji} ${rm.name}`}<small>Sleep Henry naar het goede antwoord!</small></div>`;
+    ov.innerHTML = `<div class="race-intro">${digits ? '🔢 Cijfer-modus' : `${rm.emoji} ${rm.name}`}
+      <small>Sleep Henry naar het goede antwoord!</small>
+      <small class="cat-warn">🐱 Pas op: niet tegen kat James aan botsen!</small></div>`;
     let n = 3;
     const tick = () => {
       if (n > 0) { ov.textContent = n; sfx.tick(); n--; later(tick, 700); return; }

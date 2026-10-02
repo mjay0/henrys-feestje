@@ -132,4 +132,30 @@ export const sfx = {
     noise({ dur: 0.4, vol: 0.1, freq: 3000, sweepTo: 9000 });
   },
   pop() { tone({ freq: 400, slideTo: 900, type: 'sine', dur: 0.08, vol: 0.12 }); },
+  // Boze kat: "MIAUW!" (toon door een bewegend filter) + blazen.
+  meow() {
+    if (!ctx) return;
+    const t = now();
+    const o = ctx.createOscillator();
+    const f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(520, t);
+    o.frequency.linearRampToValueAtTime(820, t + 0.18);
+    o.frequency.linearRampToValueAtTime(430, t + 0.55);
+    f.type = 'bandpass';
+    f.Q.value = 3;
+    f.frequency.setValueAtTime(700, t);
+    f.frequency.linearRampToValueAtTime(1900, t + 0.2);
+    f.frequency.linearRampToValueAtTime(900, t + 0.55);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.35, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    o.connect(f);
+    f.connect(g);
+    g.connect(master);
+    o.start(t);
+    o.stop(t + 0.65);
+    noise({ at: 0.55, dur: 0.45, vol: 0.18, type: 'highpass', freq: 3500 });
+  },
 };

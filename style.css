@@ -451,3 +451,28 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .race-intro { display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: clamp(36px, 7vmin, 64px); font-weight: 900; text-align: center; padding: 0 16px; }
 .race-intro small { font-size: 0.45em; color: var(--muted); }
 .race-opts { padding-bottom: 4px; }
+
+/* ---------- Meubels en kat James ---------- */
+.prop { position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; }
+.prop svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.35)); }
+.prop-speaker svg .lights { opacity: 1; }
+.james { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; will-change: transform; }
+.james .cat { width: 100%; height: auto; display: block; overflow: visible; }
+.james .bubble { bottom: 90%; font-size: 17px; padding: 6px 12px; }
+.cat .leg, .cat .tail, .cat .head { transform-box: fill-box; }
+.cat .leg { transform-origin: 50% 0%; }
+.cat .tail { transform-origin: 100% 100%; animation: tail 2.4s ease-in-out infinite alternate; }
+.cat .head { transform-origin: 30% 80%; }
+.james.walk .leg.l1, .james.walk .leg.l4 { animation: leg 0.5s ease-in-out infinite alternate; }
+.james.walk .leg.l2, .james.walk .leg.l3 { animation: leg 0.5s ease-in-out infinite alternate-reverse; }
+.james.walk .cat { animation: catbob 0.25s ease-in-out infinite alternate; }
+.james.flee .leg { animation-duration: 0.15s !important; }
+.james.flee .cat { animation-duration: 0.08s; }
+.james:not(.walk) .head { animation: look 3s ease-in-out infinite alternate; }
+@keyframes leg { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
+@keyframes tail { from { transform: rotate(-10deg); } to { transform: rotate(14deg); } }
+@keyframes catbob { to { transform: translateY(-3px); } }
+@keyframes look { 0%, 40% { transform: rotate(0); } 60%, 100% { transform: rotate(-8deg); } }
+.float.penalty { color: var(--red); font-size: 34px; }
+.timebar.hit { box-shadow: 0 0 0 3px var(--red); }
+.race-intro .cat-warn { color: var(--gold); font-size: 0.4em; }

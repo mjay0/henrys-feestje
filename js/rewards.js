@@ -62,7 +62,8 @@ export const HENRYS = [
   { id: 'henry', name: 'Henry', color: '#d7262e', how: 'Altijd erbij' },
   { id: 'hetty', name: 'Hetty', color: '#ec5fa5', how: 'Haal je dagdoel (15 minuten)' },
   { id: 'george', name: 'George', color: '#2e9b45', how: '3 dagen op rij je dagdoel' },
-  { id: 'james', name: 'James', color: '#f2c300', how: 'Maak een tafel helemaal goud' },
+  // id blijft 'james' zodat bewaarde voortgang klopt; de naam is Harry (James is de kat).
+  { id: 'james', name: 'Harry', color: '#f2c300', how: 'Maak een tafel helemaal goud' },
   { id: 'charles', name: 'Charles', color: '#2a64c8', how: '25 goed in de Turbo-Minuut' },
 ];
 

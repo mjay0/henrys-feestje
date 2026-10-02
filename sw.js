@@ -1,6 +1,6 @@
 // Offline: alle bestanden worden bewaard. Nieuwe versies worden op de
 // achtergrond opgehaald en zijn er bij de volgende keer openen.
-const CACHE = 'henrys-feestje-v2';
+const CACHE = 'henrys-feestje-v3';
 const FILES = [
   './',
   'index.html',
