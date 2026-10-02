@@ -16,6 +16,10 @@ export function setTestMode(on) {
   location.reload();
 }
 
+// Nummers die meteen beschikbaar zijn (zonder 'nieuw nummer'-onthulling).
+const FILE_SONG_IDS = ['energiek', 'acid', 'electro', 'deep', 'fashion'];
+const START_SONGS = ['house', 'stomp', 'techno', ...FILE_SONG_IDS];
+
 const fresh = () => ({
   version: VERSION,
   created: Date.now(),
@@ -30,8 +34,8 @@ const fresh = () => ({
   days: {},              // 'JJJJ-MM-DD' -> seconden geoefend
   streak: { last: null, count: 0 },
   goalDays: 0,
-  song: 'house',           // gekozen feestnummer (DJ)
-  seenSongs: ['house', 'stomp', 'techno'],
+  song: 'energiek',        // gekozen feestnummer (DJ)
+  seenSongs: [...START_SONGS],
   race: { played: 0, best: {}, bestAny: 0 },
   raceRoom: 'woonkamer',
   raceDigits: false,       // Cijfer-modus aan/uit
@@ -46,7 +50,7 @@ const freshTest = () => ({
   soundcheckDone: true,
   watts: 100_000,
   henrys: ['henry', 'hetty', 'george', 'james', 'charles'],
-  seenSongs: ['house', 'stomp', 'techno', 'tropisch', 'chip'],
+  seenSongs: [...START_SONGS, 'tropisch', 'chip'],
   unlockedSkills: { plus: 5, min: 5 },
   race: { played: 10, best: {}, bestAny: 20 },
 });
@@ -57,6 +61,12 @@ let state = initial();
 
 function migrate(s) {
   const base = fresh();
+  // Echte MP3-nummers toegevoegd: stil vrijgeven en als feestnummer kiezen
+  // als Lewis nog op het standaardnummer stond.
+  if (s.seenSongs && !s.seenSongs.includes('energiek')) {
+    s.seenSongs = [...s.seenSongs, ...FILE_SONG_IDS];
+    if (!s.song || s.song === 'house') s.song = 'energiek';
+  }
   return {
     ...base,
     ...s,

@@ -1,6 +1,7 @@
 // Startscherm, keuzescherm en het allereerste "Zet de party aan!" scherm.
 import { h, tap, go, pick, fmt } from '../ui.js';
 import { sfx, unlock } from '../audio.js';
+import * as music from '../music.js';
 import { henrySVG } from '../art.js';
 import * as battery from '../battery.js';
 import { activeSpeaker, activeHenry, nextSpeaker, SPEAKERS, speakerArt, isPlug, ROOMS, roomOpen, room as findRoom, digitsOpen, DIGITS_HOW } from '../rewards.js';
@@ -37,6 +38,7 @@ export function startScreen() {
   tap(el.querySelector('button'), () => {
     unlock();
     sfx.henry();
+    music.preload(store.get().song);
     go(store.get().soundcheckDone ? 'home' : 'soundcheck');
   }, { sound: false });
   return { el };

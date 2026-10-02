@@ -568,3 +568,9 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   .podium { min-height: 340px; }
   .show-speaker { height: min(36vh, 340px); }
 }
+
+/* ---------- DJ: echte nummers ---------- */
+.dj-head { grid-column: 1 / -1; margin: 6px 0 0; font-size: 20px; }
+.dj-head small { color: var(--muted); font-size: 14px; font-weight: 700; margin-left: 6px; }
+.card .artist { color: var(--gold); font-weight: 800; font-size: 14px; }
+.credits { grid-column: 1 / -1; color: var(--muted); font-size: 13px; text-align: center; margin: 8px 0 0; }

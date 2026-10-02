@@ -1,6 +1,6 @@
 // Offline: alle bestanden worden bewaard. Nieuwe versies worden op de
 // achtergrond opgehaald en zijn er bij de volgende keer openen.
-const CACHE = 'henrys-feestje-v5';
+const CACHE = 'henrys-feestje-v6';
 const FILES = [
   './',
   'index.html',
@@ -32,8 +32,20 @@ const FILES = [
   'js/screens/settings.js',
 ];
 
+// De MP3's (groot) worden ook bewaard, maar een mislukte download blokkeert de rest niet.
+const MUSIC = [
+  'MP3/paulyudin-house-energetic-upbeat-456608.mp3',
+  'MP3/aurec-acid-house-590194.mp3',
+  'MP3/aurec-electro-house-583400.mp3',
+  'MP3/nastelbom-deep-house-351574.mp3',
+  'MP3/soundsurfer-fashion-house-468930.mp3',
+];
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(async (c) => {
+    await c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })));
+    await Promise.all(MUSIC.map((f) => c.add(new Request(f, { cache: 'reload' })).catch(() => {})));
+  }).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

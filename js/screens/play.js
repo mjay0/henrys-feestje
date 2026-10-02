@@ -259,7 +259,7 @@ export function playScreen({ mode, poolId }) {
       if (n > 0) { ov.textContent = n; sfx.tick(); n--; later(tick, 700); return; }
       ov.textContent = 'GO!';
       sfx.whistle();
-      music.play('techno', { level: 3 });
+      music.play(store.get().song, { level: 3 });
       later(() => {
         ov.classList.add('hidden');
         const start = performance.now();

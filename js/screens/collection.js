@@ -138,14 +138,18 @@ export function collectionScreen({ tab = 'speakers' } = {}) {
     </button>`;
   }).join('');
 
-  const songs = SONGS.map((x) => {
+  const songCard = (x) => {
     const open = songUnlocked(x);
     return `<button class="card song ${open ? '' : 'locked'} ${s.song === x.id ? 'active' : ''}" data-song="${x.id}">
       <div class="song-icon">${open ? x.emoji : '🎵'}</div>
       <div class="card-name">${open ? x.name : '???'}</div>
+      ${x.artist && open ? `<div class="artist">${x.artist}</div>` : ''}
       <small>${open ? (s.song === x.id ? '🎧 Draait op het feest' : `${x.style} · tik om te draaien`) : `🔒 ${fmt(x.w)} ⚡`}</small>
     </button>`;
-  }).join('');
+  };
+  const songs = `<h3 class="dj-head">🎶 Echte nummers</h3>${SONGS.filter((x) => x.file).map(songCard).join('')}
+    <h3 class="dj-head">🎹 Henry's eigen nummers <small>werken altijd, ook zonder internet</small></h3>${SONGS.filter((x) => !x.file).map(songCard).join('')}
+    <p class="credits">Muziek: ${[...new Set(SONGS.filter((x) => x.artist).map((x) => x.artist))].join(', ')} · via Pixabay Music</p>`;
   const body = { speakers: '', henrys, songs }[tab];
 
   const el = h(`<div>

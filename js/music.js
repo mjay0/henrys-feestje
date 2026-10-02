@@ -1,7 +1,7 @@
 // Muziekmotor: speelt de nummers uit songs.js live af met Web Audio.
 // Niveau (1-5) bepaalt hoeveel lagen er meespelen; in 'party' bouwt het
 // nummer zelf op naar een drop.
-import { getAudio, midi } from './audio.js';
+import { getAudio, midi, getMedia } from './audio.js';
 import { song as findSong } from './songs.js';
 
 let ctx = null;
@@ -410,6 +410,123 @@ let cur = null;
 let timer = null;
 let stopTimer = null;
 
+// ---------- MP3-nummers ----------
+// Het nummer gaat door een filter: weinig goede antwoorden = gedempt,
+// een reeks = filter open, 10 op rij = volle bak (de "drop").
+let mediaSrc = null;
+let fileGain = null;
+let energy = null;
+let beatAn = null;
+let beatBuf = null;
+let beatTimer = null;
+const blobs = new Map();
+const ENERGY = { 1: 900, 2: 2500, 3: 5000, 4: 10000, 5: 20000 };
+
+function setupMedia() {
+  if (mediaSrc) return true;
+  const el = getMedia();
+  if (!el) return false;
+  mediaSrc = ctx.createMediaElementSource(el);
+  fileGain = ctx.createGain();
+  energy = ctx.createBiquadFilter();
+  energy.type = 'lowpass';
+  energy.Q.value = 0.9;
+  energy.frequency.value = 20000;
+  mediaSrc.connect(fileGain);
+  fileGain.connect(energy);
+  energy.connect(out);
+  beatAn = ctx.createAnalyser();
+  beatAn.fftSize = 1024;
+  beatAn.smoothingTimeConstant = 0.15;
+  fileGain.connect(beatAn);
+  beatBuf = new Uint8Array(beatAn.frequencyBinCount);
+  return true;
+}
+
+function setEnergy(L, smooth = 0.25) {
+  energy.frequency.setTargetAtTime(ENERGY[Math.min(maxLevel, L)] || 20000, ctx.currentTime, smooth);
+}
+
+function preservePitch(el, on) {
+  el.preservesPitch = on;
+  el.webkitPreservesPitch = on;
+}
+
+// Laad een MP3 als blob (werkt offline vanuit de cache en laat Safari vrij zoeken).
+async function loadFile(s) {
+  if (blobs.has(s.file)) return blobs.get(s.file);
+  const r = await fetch(s.file);
+  if (!r.ok) throw new Error('niet gevonden');
+  const url = URL.createObjectURL(await r.blob());
+  blobs.set(s.file, url);
+  return url;
+}
+
+export function preload(id) {
+  const s = findSong(id);
+  if (s.file) loadFile(s).catch(() => {});
+}
+
+// Kick-detectie op de bas, zodat de lichtjes op de maat meeknipperen.
+function startBeat(c) {
+  clearInterval(beatTimer);
+  let avg = 0;
+  let last = 0;
+  const gap = (60 / c.s.bpm) * 600;
+  beatTimer = setInterval(() => {
+    if (cur !== c) { clearInterval(beatTimer); return; }
+    beatAn.getByteFrequencyData(beatBuf);
+    const e = beatBuf[1] + beatBuf[2] + beatBuf[3];
+    avg = avg * 0.9 + e * 0.1;
+    const now = performance.now();
+    if (e > avg * 1.12 && e > 240 && now - last > gap) {
+      last = now;
+      if (c.onKick) c.onKick();
+    }
+  }, 30);
+}
+
+function playFile(s, opts) {
+  const el = getMedia();
+  if (!el || !setupMedia()) return false;
+  const { mode, level, onKick, drop } = opts;
+  const c = { s, file: true, mode, level, prevLevel: level, tempo: 1, step: 0, onKick };
+  cur = c;
+  fileGain.gain.value = s.gain;
+  el.loop = true;
+  el.playbackRate = 1;
+  preservePitch(el, true);
+  energy.frequency.cancelScheduledValues(ctx.currentTime);
+  const later = (fn, ms) => setTimeout(() => { if (cur === c) fn(); }, ms);
+  if (mode === 'party' && !drop) {
+    // feest: gedempt intro, opbouw, en dan de drop
+    energy.frequency.setValueAtTime(600, ctx.currentTime);
+    later(() => riser(ctx.currentTime, 2.2), 2600);
+    later(() => { crash(ctx.currentTime); energy.frequency.setTargetAtTime(20000, ctx.currentTime, 0.08); }, 4800);
+  } else if (mode === 'party') {
+    energy.frequency.setValueAtTime(20000, ctx.currentTime);
+    later(() => crash(ctx.currentTime), 50);
+  } else {
+    energy.frequency.setValueAtTime(ENERGY[Math.min(maxLevel, level)], ctx.currentTime);
+  }
+  loadFile(s).then((url) => {
+    if (cur !== c) return;
+    if (el.src !== url) el.src = url;
+    const go = () => {
+      if (cur !== c) return;
+      try { el.currentTime = s.start || 0; } catch {}
+      el.play().catch(() => {});
+      startBeat(c);
+    };
+    if (el.readyState >= 1) go();
+    else el.addEventListener('loadedmetadata', go, { once: true });
+  }).catch(() => {
+    // geen internet en nog niet bewaard: speel een eigen nummer
+    if (cur === c) { cur = null; play('house', opts); }
+  });
+  return true;
+}
+
 // drop: in 'party' meteen bij de drop beginnen (na het opladen).
 // Geeft false terug als er geen muziek mag (batterij leeg).
 export function play(id, { mode = 'live', level = 2, onKick = null, drop = false } = {}) {
@@ -417,6 +534,14 @@ export function play(id, { mode = 'live', level = 2, onKick = null, drop = false
   stopNow();
   if (gate && !gate()) return false;
   const s = findSong(id);
+  if (s.file) {
+    powerLP.frequency.cancelScheduledValues(ctx.currentTime);
+    powerLP.frequency.setValueAtTime(20000, ctx.currentTime);
+    out.gain.cancelScheduledValues(ctx.currentTime);
+    out.gain.setValueAtTime(out.gain.value, ctx.currentTime);
+    out.gain.linearRampToValueAtTime(musicOn ? VOLUME : 0, ctx.currentTime + 0.4);
+    return playFile(s, { mode, level, onKick, drop });
+  }
   const step = mode === 'party' && drop ? 32 : 0;
   cur = { s, p: prepare(s), mode, level, prevLevel: level, tempo: 1, step, next: ctx.currentTime + 0.08, onKick };
   powerLP.frequency.cancelScheduledValues(ctx.currentTime);
@@ -440,19 +565,41 @@ export function powerDown() {
   out.gain.setValueAtTime(out.gain.value, t);
   out.gain.linearRampToValueAtTime(0, t + 2);
   c.onKick = null;
-  const slow = setInterval(() => { if (cur === c) c.tempo = Math.max(0.35, c.tempo * 0.88); }, 100);
+  const el = getMedia();
+  if (c.file && el) preservePitch(el, false); // "bandje dat stopt"
+  const slow = setInterval(() => {
+    if (cur !== c) return;
+    c.tempo = Math.max(0.35, c.tempo * 0.88);
+    if (c.file && el) el.playbackRate = Math.max(0.5, c.tempo);
+  }, 100);
   stopTimer = setTimeout(() => { clearInterval(slow); if (cur === c) stopNow(); }, 2100);
 }
 
-export function setLevel(n) { if (cur) cur.level = Math.max(1, Math.min(5, n)); }
-export function setTempo(x) { if (cur) cur.tempo = x; }
+export function setLevel(n) {
+  if (!cur) return;
+  const before = cur.level;
+  cur.level = Math.max(1, Math.min(5, n));
+  if (cur.file && cur.mode !== 'party') {
+    if (cur.level >= 5 && before < 5 && maxLevel >= 5) crash(ctx.currentTime);
+    setEnergy(cur.level);
+  }
+}
+export function setTempo(x) {
+  if (!cur) return;
+  cur.tempo = x;
+  const el = getMedia();
+  if (cur.file && el) el.playbackRate = x;
+}
 export const playing = () => (cur ? cur.s.id : null);
 
 function stopNow() {
   if (timer) clearInterval(timer);
   if (stopTimer) clearTimeout(stopTimer);
+  clearInterval(beatTimer);
   timer = null;
   stopTimer = null;
+  const el = getMedia();
+  if (cur && cur.file && el && !el.paused) el.pause();
   cur = null;
 }
 

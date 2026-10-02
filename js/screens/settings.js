@@ -23,6 +23,7 @@ export function settingsScreen() {
         : `<button class="btn test-on">🧪 Testmodus (voor ouders)</button>
            <button class="btn danger wipe">🗑️ Alles wissen</button>`}
       <p class="small">Tip: zet het spel op je beginscherm (Deel → Zet op beginscherm). Dan werkt het ook zonder internet.</p>
+      <p class="small">🎶 Muziek: Paul Yudin, Aurec, Nastelbom en SoundSurfer, via Pixabay Music (Pixabay-licentie).</p>
     </div>
   </div>`);
   tap(el.querySelector('.back'), () => go('home'));

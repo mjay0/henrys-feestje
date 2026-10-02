@@ -5,11 +5,36 @@ let master = null;
 let noiseBuf = null;
 let enabled = true;
 
+// Eén <audio>-element voor de MP3-nummers. iOS wil dat het één keer tijdens
+// een tik start, daarna mag het spel het zelf afspelen.
+let media = null;
+
+function silentWavUrl() {
+  const n = 800;
+  const b = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(b);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+}
+
+export const getMedia = () => media;
+
 export function unlock() {
   try {
     // iOS: speel ook als de stil-schakelaar aan staat (Safari 16.4+).
     if (navigator.audioSession) navigator.audioSession.type = 'playback';
   } catch {}
+  if (!media) {
+    media = new Audio();
+    media.playsInline = true;
+    media.preload = 'auto';
+    media.src = silentWavUrl();
+    media.play().then(() => media.pause()).catch(() => {});
+  }
   if (!ctx) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
