@@ -1,6 +1,6 @@
 // Offline: alle bestanden worden bewaard. Nieuwe versies worden op de
 // achtergrond opgehaald en zijn er bij de volgende keer openen.
-const CACHE = 'henrys-feestje-v1';
+const CACHE = 'henrys-feestje-v2';
 const FILES = [
   './',
   'index.html',
@@ -13,6 +13,8 @@ const FILES = [
   'js/store.js',
   'js/engine.js',
   'js/audio.js',
+  'js/music.js',
+  'js/songs.js',
   'js/art.js',
   'js/ui.js',
   'js/rewards.js',
@@ -21,6 +23,7 @@ const FILES = [
   'js/modules/plusmin.js',
   'js/screens/home.js',
   'js/screens/play.js',
+  'js/screens/race.js',
   'js/screens/party.js',
   'js/screens/soundcheck.js',
   'js/screens/collection.js',
@@ -29,7 +32,7 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

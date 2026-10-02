@@ -15,10 +15,20 @@ function hint(n, t) {
   ];
 }
 
+// Foute antwoorden waar kinderen echt mee in de war raken (voor de Stofzuig-Race).
+function near(n, t) {
+  const a = n * t;
+  const flip = Number(String(a).split('').reverse().join(''));
+  return [(n + 1) * t, (n - 1) * t, n * (t + 1), n * (t - 1), a + 10, a - 10, a + 1, a - 1, flip]
+    .filter((x) => x > 0 && x !== a);
+}
+
 function fact(n, t) {
   return {
     key: key(n, t),
-    make: () => ({ key: key(n, t), text: `${n} × ${t}`, answer: n * t, hint: hint(n, t), fastMs: 4000, jump: true }),
+    make: () => ({
+      key: key(n, t), text: `${n} × ${t}`, answer: n * t, hint: hint(n, t), near: near(n, t), fastMs: 4000, jump: true,
+    }),
   };
 }
 

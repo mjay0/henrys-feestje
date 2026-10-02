@@ -1,8 +1,9 @@
 // Het feest na een ronde, plus het onthullen van nieuwe speakers en Henry's.
 import { h, tap, go, confetti } from '../ui.js';
-import { sfx, startBeat, stopBeat } from '../audio.js';
+import { sfx } from '../audio.js';
+import * as music from '../music.js';
 import { henrySVG, speakerSVG } from '../art.js';
-import { activeSpeaker, activeHenry, checkHenrys } from '../rewards.js';
+import { activeSpeaker, activeHenry, checkHenrys, newSongs } from '../rewards.js';
 import * as store from '../store.js';
 
 export function partyScreen({ title, lines = [], big = false, newSpeakers = [], messages = [], again = null }) {
@@ -10,6 +11,7 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
   const hn = activeHenry();
   const queue = [
     ...newSpeakers.map((s) => ({ type: 'speaker', s })),
+    ...newSongs().map((x) => ({ type: 'song', s: x })),
     ...checkHenrys().map((x) => ({ type: 'henry', h: x })),
     ...messages.map((text) => ({ type: 'msg', text })),
   ];
@@ -39,12 +41,14 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
 
   const card = el.querySelector('.party-card');
   const wraps = el.querySelectorAll('.speaker-wrap');
-  const intensity = Math.min(5, sp.tier + 1 + (big ? 1 : 0));
-  startBeat(intensity, () => {
-    wraps.forEach((w) => { w.classList.remove('thump'); void w.offsetWidth; w.classList.add('thump'); });
-    el.classList.toggle('flash');
+  music.play(store.get().song, {
+    mode: 'party',
+    onKick: () => {
+      wraps.forEach((w) => { w.classList.remove('thump'); void w.offsetWidth; w.classList.add('thump'); });
+      el.classList.toggle('flash');
+    },
   });
-  timers.push(setTimeout(stopBeat, big ? 45_000 : 20_000));
+  timers.push(setTimeout(() => music.stop(2), big ? 50_000 : 25_000));
   confetti(el, big ? 140 : 70);
   if (big) timers.push(setTimeout(() => confetti(el, 100), 2500));
 
@@ -61,7 +65,7 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
 
   function endButtons() {
     const btns = [];
-    if (again) btns.push(['🔁 Nog een keer', () => go('play', again), 'primary']);
+    if (again) btns.push(['🔁 Nog een keer', () => go(again.screen, again.args), 'primary']);
     btns.push(['🏠 Naar huis', () => go('home'), again ? '' : 'primary']);
     actions(btns);
   }
@@ -77,6 +81,14 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
         <h1>${item.s.name}</h1><div class="actions"></div></div>`;
       actions([
         ['🔊 Zet hem aan!', () => { store.get().speaker = item.s.id; store.save(); reveal(); }, 'primary'],
+        ['Later', reveal],
+      ]);
+    } else if (item.type === 'song') {
+      card.innerHTML = `<div class="reveal"><div class="tag">Nieuw nummer voor de DJ! 🎧</div>
+        <div class="song-icon big-reveal">${item.s.emoji}</div>
+        <h1>${item.s.name}</h1><p>${item.s.style}</p><div class="actions"></div></div>`;
+      actions([
+        ['▶️ Draai het nu!', () => { store.get().song = item.s.id; store.save(); music.play(item.s.id, { mode: 'party' }); reveal(); }, 'primary'],
         ['Later', reveal],
       ]);
     } else if (item.type === 'henry') {
@@ -103,7 +115,7 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
   return {
     el,
     leave() {
-      stopBeat();
+      music.stop(0.4);
       timers.forEach(clearTimeout);
     },
   };

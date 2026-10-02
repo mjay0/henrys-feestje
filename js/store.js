@@ -16,14 +16,25 @@ const fresh = () => ({
   days: {},              // 'JJJJ-MM-DD' -> seconden geoefend
   streak: { last: null, count: 0 },
   goalDays: 0,
-  settings: { sound: true },
+  song: 'house',           // gekozen feestnummer (DJ)
+  seenSongs: ['house', 'stomp', 'techno'],
+  race: { played: 0, best: {}, bestAny: 0 },
+  raceRoom: 'woonkamer',
+  raceDigits: false,       // Cijfer-modus aan/uit
+  settings: { sound: true, music: true },
 });
 
 let state = fresh();
 
 function migrate(s) {
   const base = fresh();
-  return { ...base, ...s, settings: { ...base.settings, ...(s.settings || {}) }, version: VERSION };
+  return {
+    ...base,
+    ...s,
+    settings: { ...base.settings, ...(s.settings || {}) },
+    race: { ...base.race, ...(s.race || {}) },
+    version: VERSION,
+  };
 }
 
 export function load() {

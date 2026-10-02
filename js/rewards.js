@@ -1,6 +1,7 @@
 // Beloningen: speakers (vrijspelen met watts) en de Henry-familie.
 import * as store from './store.js';
 import { MAX_BOX } from './engine.js';
+import { SONGS } from './songs.js';
 
 // Van klein naar groot. `w` = totaal benodigde watts.
 // shape: compact | tower ; woofers: 1 of 2 ; lights: ring | strobe | panel
@@ -31,6 +32,31 @@ export function addWatts(n) {
   s.watts += n;
   return SPEAKERS.filter((sp) => sp.w > before && sp.w <= s.watts);
 }
+
+// Nummers: gaan open met watts, net als speakers.
+export const songUnlocked = (s) => store.get().watts >= s.w;
+
+// Geeft nummers terug die vrij zijn maar nog niet getoond.
+export function newSongs() {
+  const st = store.get();
+  const fresh = SONGS.filter((s) => songUnlocked(s) && !st.seenSongs.includes(s.id));
+  fresh.forEach((s) => st.seenSongs.push(s.id));
+  return fresh;
+}
+
+// Kamers voor de Stofzuig-Race: gaan open na een aantal races.
+export const ROOMS = [
+  { id: 'woonkamer', name: 'Woonkamer', emoji: '🛋️', races: 0, speed: 22, balls: 4 },
+  { id: 'keuken', name: 'Keuken', emoji: '🍳', races: 2, speed: 36, balls: 4 },
+  { id: 'slaapkamer', name: 'Slaapkamer', emoji: '🛏️', races: 4, speed: 46, balls: 5 },
+  { id: 'disco', name: 'Disco', emoji: '🪩', races: 6, speed: 56, balls: 5 },
+];
+export const roomOpen = (r) => store.get().race.played >= r.races;
+export const room = (id) => ROOMS.find((r) => r.id === id && roomOpen(r)) || ROOMS[0];
+
+// Cijfer-modus: na 3 races en een keer 10 of meer goed in één race.
+export const DIGITS_HOW = 'Speel 3 races en haal 10 goed in één race';
+export const digitsOpen = () => store.get().race.played >= 3 && store.get().race.bestAny >= 10;
 
 export const HENRYS = [
   { id: 'henry', name: 'Henry', color: '#d7262e', how: 'Altijd erbij' },

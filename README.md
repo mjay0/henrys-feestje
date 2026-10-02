@@ -12,7 +12,9 @@ Runs entirely in the browser, offline too (add it to the iPad home screen). Prog
 - `js/engine.js`: tracks how well each sum is known (box 0–5, where 5 = gold) and picks the weak sums more often.
 - `js/rewards.js`: speakers (unlocked with watts) and the Henry family.
 - `js/screens/`: the screens.
-- `js/audio.js`: all sound is generated live with Web Audio.
+- `js/audio.js`: sound effects, generated live with Web Audio.
+- `js/music.js` + `js/songs.js`: the music engine and the songs (written as notes). Add a song by adding an entry to `SONGS`.
+- `js/screens/race.js`: the Stofzuig-Race (drag Henry with your finger to the correct dust ball; Cijfer-modus = suck up the digits in order).
 
 Testing locally: serve the folder with any static server, e.g. `npx serve .`
 After changing files, bump `CACHE` in `sw.js` so the iPad picks up the new version.

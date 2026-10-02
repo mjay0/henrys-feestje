@@ -1,6 +1,7 @@
 // Instellingen (voor papa): geluid, soundcheck opnieuw, alles wissen.
 import { h, tap, go } from '../ui.js';
 import { setEnabled } from '../audio.js';
+import { setMusicEnabled } from '../music.js';
 import * as store from '../store.js';
 
 export function settingsScreen() {
@@ -13,6 +14,7 @@ export function settingsScreen() {
     </header>
     <div class="settings-page">
       <button class="btn sound">${s.settings.sound ? '🔊 Geluid staat aan' : '🔇 Geluid staat uit'}</button>
+      <button class="btn music">${s.settings.music ? '🎵 Muziek staat aan' : '🎵 Muziek staat uit'}</button>
       <button class="btn redo">🎤 Soundcheck opnieuw doen</button>
       <button class="btn danger wipe">🗑️ Alles wissen</button>
       <p class="small">Tip: zet het spel op je beginscherm (Deel → Zet op beginscherm). Dan werkt het ook zonder internet.</p>
@@ -22,6 +24,12 @@ export function settingsScreen() {
   tap(el.querySelector('.sound'), () => {
     s.settings.sound = !s.settings.sound;
     setEnabled(s.settings.sound);
+    store.save();
+    go('settings');
+  });
+  tap(el.querySelector('.music'), () => {
+    s.settings.music = !s.settings.music;
+    setMusicEnabled(s.settings.music);
     store.save();
     go('settings');
   });

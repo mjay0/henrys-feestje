@@ -6,8 +6,9 @@ import { makePicker, record } from '../engine.js';
 import { findPool, afterRecord } from '../modules/index.js';
 import { activeSpeaker, activeHenry, addWatts } from '../rewards.js';
 import * as store from '../store.js';
+import * as music from '../music.js';
 
-const ROUND = 12;
+const ROUND = 8;
 const TURBO_MS = 60_000;
 
 const PRAISE = ['Goed zo!', 'Top!', 'Yes!', 'Super!', 'Knallen!', 'Bas erop!', 'Lekker bezig!', 'Zo! 💥', 'Henry is blij!'];
@@ -225,7 +226,7 @@ export function playScreen({ mode, poolId }) {
       big: goalReached,
       newSpeakers,
       messages,
-      again: quit ? null : { mode, poolId },
+      again: quit ? null : { screen: 'play', args: { mode, poolId } },
     });
   }
 
@@ -237,6 +238,7 @@ export function playScreen({ mode, poolId }) {
       if (n > 0) { ov.textContent = n; sfx.tick(); n--; later(tick, 700); return; }
       ov.textContent = 'GO!';
       sfx.whistle();
+      music.play('techno', { level: 3 });
       later(() => {
         ov.classList.add('hidden');
         const start = performance.now();
@@ -247,6 +249,7 @@ export function playScreen({ mode, poolId }) {
           bar.style.transform = `scaleX(${Math.max(0, left / TURBO_MS)})`;
           const sec = Math.ceil(left / 1000);
           if (sec <= 10 && sec < lastSec && sec > 0) sfx.tick();
+          if (sec === 10 && lastSec > 10) { music.setTempo(1.1); music.setLevel(5); }
           lastSec = sec;
           bar.classList.toggle('low', left < 10_000);
           if (left <= 0) { clearInterval(iv); addTime(); finish(false); }
@@ -273,6 +276,7 @@ export function playScreen({ mode, poolId }) {
       ended = true;
       timers.forEach((t) => { clearTimeout(t); clearInterval(t); });
       unkey();
+      music.stop(0.3);
     },
   };
 }

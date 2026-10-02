@@ -237,7 +237,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .key-ok { background: var(--green); }
 .key-del { background: rgba(255, 255, 255, 0.06); }
 
-.battery { flex: 1; display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; padding: 6px; border-radius: 14px; border: 2px solid var(--glass-line); max-width: 520px; margin: 0 auto; }
+.battery { flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; padding: 6px; border-radius: 14px; border: 2px solid var(--glass-line); max-width: 520px; margin: 0 auto; }
 .battery i { height: 22px; border-radius: 5px; background: rgba(255, 255, 255, 0.1); transition: background 0.3s; }
 .battery i.on { background: linear-gradient(180deg, #b6ff5a, var(--green)); box-shadow: 0 0 10px rgba(43, 217, 107, 0.7); }
 .timebar { flex: 1; height: 22px; border-radius: 99px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
@@ -363,3 +363,91 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 @media (prefers-reduced-motion: reduce) {
   .bounce, .dance, .disco, .party::before { animation: none; }
 }
+
+/* ---------- Versie 2: menu ---------- */
+.btn.race { background: linear-gradient(135deg, #2bd96b, #00b3a4); border: 0; box-shadow: 0 8px 24px rgba(43, 217, 107, 0.35); }
+.menu .wide { grid-column: 1 / 3; }
+.menu .big:not(.wide) { grid-column: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.chip { padding: 10px 16px; border-radius: 99px; background: var(--glass); border: 1px solid var(--glass-line); font-weight: 800; font-size: 17px; }
+.chip.on { background: var(--card); color: var(--card-ink); }
+.chip.locked { opacity: 0.5; font-weight: 700; }
+.chip small { font-size: 13px; opacity: 0.8; margin-left: 4px; }
+.chip.digits.on { background: var(--gold); color: var(--card-ink); }
+.song-icon { font-size: 72px; line-height: 1.4; }
+.reveal .song-icon { font-size: 110px; }
+.card.song { min-height: 200px; justify-content: center; }
+.card.locked .song-icon { filter: grayscale(1) brightness(0.5); }
+
+/* ---------- Stofzuig-Race ---------- */
+.screen-race { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.race-q {
+  align-self: center; margin: 4px 0 10px;
+  background: var(--card); color: var(--card-ink);
+  border-radius: 999px; padding: 6px 28px;
+  font-size: clamp(30px, 6vmin, 54px); font-weight: 900; font-variant-numeric: tabular-nums;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.race-q.enter { animation: enter 0.25s ease; }
+.rq-ans { color: var(--pink); }
+.rq-ans b { display: inline-block; min-width: 0.7em; text-align: center; color: #b7aacb; }
+.rq-ans b.got { color: var(--green); }
+.rq-ans b.now { color: var(--pink); animation: blink 0.6s infinite alternate; }
+.arena {
+  position: relative; flex: 1; min-height: 300px; overflow: hidden;
+  border-radius: 28px; border: 3px solid rgba(255, 255, 255, 0.15);
+  touch-action: none; cursor: grab;
+}
+.room-woonkamer .arena { background: repeating-linear-gradient(90deg, #8a5a34 0 62px, #7c4f2c 62px 64px), #8a5a34; }
+.room-woonkamer .arena::before { content: ""; position: absolute; inset: 14% 18%; border-radius: 40px; background: radial-gradient(circle, #2e7d74 0 40%, #24635c 41% 60%, #2e7d74 61%); opacity: 0.85; }
+.room-keuken .arena { background: repeating-conic-gradient(#f2efe6 0 25%, #c8433c 0 50%) 0 0 / 90px 90px; }
+.room-slaapkamer .arena { background: radial-gradient(circle at 20% 30%, rgba(255,255,255,.08) 0 3px, transparent 4px) 0 0 / 26px 26px, linear-gradient(135deg, #3c4fa8, #6a4bb8); }
+.room-disco .arena { background: #140a2a; }
+.room-disco .arena::before {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-conic-gradient(#ff2bd6 0 25%, #4a1d8f 0 50%, #00b8e6 0 75%, #2a1260 0 100%) 0 0 / 110px 110px;
+  opacity: 0.6; animation: disco-floor 1.9s steps(4) infinite;
+}
+@keyframes disco-floor { 50% { opacity: 0.4; } to { background-position: 110px 0; } }
+
+.dust {
+  position: absolute; left: 0; top: 0; border-radius: 50%;
+  display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, #f4f1fa, #b9b2c9 55%, #8f87a3);
+  box-shadow:
+    -8px -6px 0 -3px #c9c3d6, 9px -7px 0 -4px #cfc9db, 10px 8px 0 -4px #a9a1bb,
+    -9px 8px 0 -4px #b1aac2, 0 -11px 0 -5px #d6d1e1, 0 6px 14px rgba(0, 0, 0, 0.35);
+  color: #1a1030; font-weight: 900; font-size: clamp(22px, 3.4vmin, 34px);
+  will-change: transform; pointer-events: none;
+  animation: dust-in 0.3s cubic-bezier(.2, 1.6, .5, 1);
+}
+.dust span { position: relative; top: 6px; }
+.dust .eye { position: absolute; top: 24%; width: 9px; height: 11px; border-radius: 50%; background: #1a1030; }
+.dust .eye.l { left: 34%; } .dust .eye.r { right: 34%; }
+.dust.hint { animation: glow 0.7s infinite alternate; }
+@keyframes glow { to { box-shadow: 0 0 0 6px var(--gold), 0 0 30px 10px rgba(255, 201, 40, 0.8); } }
+@keyframes dust-in { from { scale: 0; } }
+.dust.sucked { transition: transform 0.25s ease-in, opacity 0.25s; opacity: 0.2; }
+.dust.poof { transition: opacity 0.25s, scale 0.25s; opacity: 0; scale: 1.4; }
+
+.racer { position: absolute; left: 0; top: 0; will-change: transform; pointer-events: none; z-index: 3; }
+.racer-flip { transition: transform 0.12s; }
+.racer .bubble { bottom: 95%; font-size: 18px; padding: 6px 12px; }
+.puff {
+  position: absolute; left: 0; top: 0; width: 120px; height: 120px; border-radius: 50%; z-index: 4;
+  background: radial-gradient(circle, rgba(220, 214, 230, 0.95), rgba(220, 214, 230, 0) 70%);
+  animation: puff 0.9s ease-out forwards; pointer-events: none;
+}
+@keyframes puff { from { scale: 0.3; } to { scale: 2; opacity: 0; } }
+.power-item {
+  position: absolute; left: 0; top: 0; width: 60px; height: 60px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 34px;
+  background: radial-gradient(circle, #fff7, #ffd40055); box-shadow: 0 0 20px 6px rgba(255, 212, 0, 0.7);
+  animation: glow 0.5s infinite alternate; pointer-events: none; z-index: 2;
+}
+.powers { position: absolute; right: 12px; top: 10px; display: flex; gap: 6px; z-index: 5; font-size: 32px; }
+.powers span { animation: blink 0.5s infinite alternate; }
+.power-float { font-size: 60px; }
+.race-intro { display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: clamp(36px, 7vmin, 64px); font-weight: 900; text-align: center; padding: 0 16px; }
+.race-intro small { font-size: 0.45em; color: var(--muted); }
+.race-opts { padding-bottom: 4px; }

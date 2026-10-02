@@ -2,7 +2,7 @@
 import { h, tap, go, pick, fmt } from '../ui.js';
 import { sfx, unlock } from '../audio.js';
 import { henrySVG, speakerSVG } from '../art.js';
-import { activeSpeaker, activeHenry, nextSpeaker, SPEAKERS } from '../rewards.js';
+import { activeSpeaker, activeHenry, nextSpeaker, SPEAKERS, ROOMS, roomOpen, room as findRoom, digitsOpen, DIGITS_HOW } from '../rewards.js';
 import { progress, MAX_BOX, mastery } from '../engine.js';
 import { MODULES } from '../modules/index.js';
 import * as store from '../store.js';
@@ -66,8 +66,9 @@ export function homeScreen() {
         <div class="progress"><i style="width:${pct * 100}%"></i></div>
       </div>
       <div class="menu">
-        <button class="btn primary big" data-go="practice">🔋 Partybox Opladen<small>Oefenen met hulp</small></button>
-        <button class="btn turbo big" data-go="turbo">⏱️ Turbo-Minuut<small>Zo veel mogelijk in 1 minuut</small></button>
+        <button class="btn race big wide" data-go="race">🧹 Stofzuig-Race<small>Zuig het goede antwoord op!</small></button>
+        <button class="btn primary big" data-go="practice">🔋 Opladen<small>Oefenen met hulp</small></button>
+        <button class="btn turbo big" data-go="turbo">⏱️ Turbo-Minuut<small>1 minuut, zo snel mogelijk</small></button>
         <button class="btn" data-go="collection">🔊 Mijn speakers</button>
         <button class="btn" data-go="stars">⭐ Mijn sterren</button>
       </div>
@@ -76,7 +77,7 @@ export function homeScreen() {
 
   el.querySelectorAll('[data-go]').forEach((b) => tap(b, () => {
     const t = b.dataset.go;
-    if (t === 'practice' || t === 'turbo') go('pick', { mode: t });
+    if (t === 'practice' || t === 'turbo' || t === 'race') go('pick', { mode: t });
     else go(t);
   }));
   tap(el.querySelector('.settings'), () => go('settings'));
@@ -104,24 +105,42 @@ export function starsFor(keys) {
   return `<span class="stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(3 - n)}</span></span>`;
 }
 
+const TITLES = { practice: '🔋 Partybox Opladen', turbo: '⏱️ Turbo-Minuut', race: '🧹 Stofzuig-Race' };
+
 export function pickScreen({ mode }) {
-  const turbo = mode === 'turbo';
-  const records = store.get().records;
+  const s = store.get();
+  const race = mode === 'race';
+  const digits = race && s.raceDigits && digitsOpen();
+  const recordOf = (id) => {
+    if (mode === 'turbo') return s.records[id];
+    if (race) return s.race.best[`${id}${digits ? ':cijfers' : ''}`];
+    return 0;
+  };
   const tile = (p) => {
     const keys = p.items().map((i) => i.key);
-    const rec = turbo && records[p.id] ? `<small>🏆 ${records[p.id]}</small>` : '';
+    const r = recordOf(p.id);
+    const rec = r ? `<small>🏆 ${r}</small>` : '';
     return `<button class="tile ${p.big ? 'wide' : ''} ${p.short ? 'small' : ''}" data-pool="${p.id}">
       <span class="tile-name">${p.short ? `<b>${p.short}</b>` : p.name}</span>
       ${p.sub && !p.short ? `<small>${p.sub}</small>` : ''}
       ${starsFor(keys)}${rec}</button>`;
   };
+  const raceBar = race ? `<section class="race-opts">
+      <div class="chips">${ROOMS.map((r) => roomOpen(r)
+        ? `<button class="chip ${findRoom(s.raceRoom).id === r.id ? 'on' : ''}" data-room="${r.id}">${r.emoji} ${r.name}</button>`
+        : `<span class="chip locked">🔒 ${r.name} <small>na ${r.races} races</small></span>`).join('')}</div>
+      ${digitsOpen()
+        ? `<button class="chip digits ${digits ? 'on' : ''}" data-digits>🔢 Cijfer-modus ${digits ? 'AAN' : 'uit'}</button>`
+        : `<span class="chip locked">🔒 Cijfer-modus <small>${DIGITS_HOW}</small></span>`}
+    </section>` : '';
   const el = h(`<div>
     <header class="bar">
       <button class="icon-btn back" aria-label="Terug">←</button>
-      <h2>${turbo ? '⏱️ Turbo-Minuut' : '🔋 Partybox Opladen'}</h2>
+      <h2>${TITLES[mode]}</h2>
       <span></span>
     </header>
     <div class="pick">
+      ${raceBar}
       ${MODULES.map((m) => {
         const pools = m.pools();
         const small = pools.filter((p) => p.short);
@@ -134,6 +153,10 @@ export function pickScreen({ mode }) {
     </div>
   </div>`);
   tap(el.querySelector('.back'), () => go('home'));
-  el.querySelectorAll('[data-pool]').forEach((b) => tap(b, () => go('play', { mode, poolId: b.dataset.pool })));
+  el.querySelectorAll('[data-pool]').forEach((b) => tap(b, () =>
+    (race ? go('race', { poolId: b.dataset.pool }) : go('play', { mode, poolId: b.dataset.pool }))));
+  el.querySelectorAll('[data-room]').forEach((b) => tap(b, () => { s.raceRoom = b.dataset.room; store.save(); go('pick', { mode }); }));
+  const dg = el.querySelector('[data-digits]');
+  if (dg) tap(dg, () => { s.raceDigits = !s.raceDigits; store.save(); go('pick', { mode }); });
   return { el };
 }

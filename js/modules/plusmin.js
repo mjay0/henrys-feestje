@@ -44,8 +44,29 @@ function minHint(a, b) {
   return steps;
 }
 
-const plus = (a, b) => ({ text: `${a} + ${b}`, answer: a + b, hint: plusHint(a, b) });
-const min = (a, b) => ({ text: `${a} − ${b}`, answer: a - b, hint: minHint(a, b) });
+// Foute antwoorden die op echte denkfouten lijken (voor de Stofzuig-Race).
+function near(ans, typical) {
+  const flip = Number(String(ans).split('').reverse().join(''));
+  return [...typical, ans + 10, ans - 10, ans + 1, ans - 1, ans + 2, ans - 2, flip]
+    .filter((x) => x >= 0 && x <= 100 && x !== ans);
+}
+
+function plusNear(a, b) {
+  const s = a + b;
+  // Vergeten over het tiental te gaan: 38 + 7 = 35
+  const noCarry = (a % 10) + (b % 10) >= 10 ? s - 10 : s + 10;
+  return near(s, [noCarry]);
+}
+
+function minNear(a, b) {
+  const s = a - b;
+  // Kleinste van grootste: 42 − 7 → 2 en 7 omdraaien = 45
+  const swap = (Math.floor(a / 10) - Math.floor(b / 10)) * 10 + Math.abs((a % 10) - (b % 10));
+  return near(s, [swap, s + 10]);
+}
+
+const plus = (a, b) => ({ text: `${a} + ${b}`, answer: a + b, hint: plusHint(a, b), near: plusNear(a, b) });
+const min = (a, b) => ({ text: `${a} − ${b}`, answer: a - b, hint: minHint(a, b), near: minNear(a, b) });
 
 // Elk somtype levert een willekeurige som van dat type.
 export const SKILLS = {

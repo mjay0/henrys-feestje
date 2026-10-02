@@ -2,7 +2,9 @@
 import { h, tap, go, fmt } from '../ui.js';
 import { sfx } from '../audio.js';
 import { henrySVG, speakerSVG } from '../art.js';
-import { SPEAKERS, HENRYS, isUnlocked } from '../rewards.js';
+import { SPEAKERS, HENRYS, isUnlocked, songUnlocked } from '../rewards.js';
+import { SONGS } from '../songs.js';
+import * as music from '../music.js';
 import * as store from '../store.js';
 
 export function collectionScreen({ tab = 'speakers' } = {}) {
@@ -27,16 +29,27 @@ export function collectionScreen({ tab = 'speakers' } = {}) {
     </button>`;
   }).join('');
 
+  const songs = SONGS.map((x) => {
+    const open = songUnlocked(x);
+    return `<button class="card song ${open ? '' : 'locked'} ${s.song === x.id ? 'active' : ''}" data-song="${x.id}">
+      <div class="song-icon">${open ? x.emoji : '🎵'}</div>
+      <div class="card-name">${open ? x.name : '???'}</div>
+      <small>${open ? (s.song === x.id ? '🎧 Draait op het feest' : `${x.style} · tik om te draaien`) : `🔒 ${fmt(x.w)} ⚡`}</small>
+    </button>`;
+  }).join('');
+  const body = { speakers, henrys, songs }[tab];
+
   const el = h(`<div>
     <header class="bar">
       <button class="icon-btn back" aria-label="Terug">←</button>
       <div class="tabs">
         <button class="tab ${tab === 'speakers' ? 'on' : ''}" data-tab="speakers">🔊 Speakers ${owned}/${SPEAKERS.length}</button>
         <button class="tab ${tab === 'henrys' ? 'on' : ''}" data-tab="henrys">🧹 Henry's ${s.henrys.length}/${HENRYS.length}</button>
+        <button class="tab ${tab === 'songs' ? 'on' : ''}" data-tab="songs">🎧 DJ</button>
       </div>
       <div class="pill watts">⚡ <b>${fmt(s.watts)}</b></div>
     </header>
-    <div class="collection">${tab === 'speakers' ? speakers : henrys}</div>
+    <div class="collection">${body}</div>
   </div>`);
 
   tap(el.querySelector('.back'), () => go('home'));
@@ -56,5 +69,17 @@ export function collectionScreen({ tab = 'speakers' } = {}) {
     sfx.henry();
     go('collection', { tab });
   }, { sound: false }));
-  return { el };
+  el.querySelectorAll('[data-song]').forEach((b) => tap(b, () => {
+    const x = SONGS.find((y) => y.id === b.dataset.song);
+    if (!songUnlocked(x)) { sfx.wrong(); return; }
+    s.song = x.id;
+    store.save();
+    el.querySelectorAll('[data-song]').forEach((c) => c.classList.toggle('active', c === b));
+    el.querySelectorAll('[data-song] small').forEach((c) => {
+      const y = SONGS.find((z) => z.id === c.parentElement.dataset.song);
+      if (songUnlocked(y)) c.textContent = y.id === x.id ? '🎧 Draait op het feest' : `${y.style} · tik om te draaien`;
+    });
+    music.play(x.id, { level: 5 });
+  }, { sound: false }));
+  return { el, leave: () => music.stop(0.4) };
 }
