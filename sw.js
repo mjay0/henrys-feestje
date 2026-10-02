@@ -1,6 +1,8 @@
 // Offline: alle bestanden worden bewaard. Nieuwe versies worden op de
 // achtergrond opgehaald en zijn er bij de volgende keer openen.
-const CACHE = 'henrys-feestje-v9';
+// Fayes Vleermuis Paradijs staat op hetzelfde domein: alleen onze eigen caches opruimen.
+const PREFIX = 'henrys-feestje-';
+const CACHE = `${PREFIX}v10`;
 const FILES = [
   './',
   'index.html',
@@ -51,7 +53,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
