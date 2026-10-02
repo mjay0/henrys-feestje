@@ -1,10 +1,11 @@
 // Oefenen: "Partybox Opladen" (rustig, met hulp) en "Turbo-Minuut" (tegen de klok).
 import { h, tap, go, numpad, keyboard, floatText, pick, fmt } from '../ui.js';
 import { sfx } from '../audio.js';
-import { henrySVG, speakerSVG } from '../art.js';
+import { henrySVG } from '../art.js';
 import { makePicker, record } from '../engine.js';
 import { findPool, afterRecord } from '../modules/index.js';
-import { activeSpeaker, activeHenry, addWatts } from '../rewards.js';
+import { activeSpeaker, activeHenry, addWatts, speakerArt, isPlug } from '../rewards.js';
+import * as battery from '../battery.js';
 import * as store from '../store.js';
 import * as music from '../music.js';
 
@@ -54,7 +55,11 @@ export function playScreen({ mode, poolId }) {
     </header>
     <div class="play">
       <div class="stage">
-        <div class="speaker-wrap" style="--charge:0">${speakerSVG(sp)}</div>
+        <div class="speaker-col">
+          <div class="speaker-wrap" style="--charge:${turbo ? 0.7 : battery.level(sp.id) / 100}">${speakerArt(sp)}</div>
+          ${turbo ? '' : `<div class="charger ${isPlug(sp) ? 'plugged' : ''}"><span class="socket">🔌</span><i class="cable"></i></div>
+          <div class="big-batt">${battery.badge(sp.id)}</div>`}
+        </div>
         <div class="henry-wrap"><div class="henry-holder">${henrySVG(hn.color)}</div><div class="bubble"></div></div>
       </div>
       <div class="panel">
@@ -169,8 +174,8 @@ export function playScreen({ mode, poolId }) {
         later(show, 250);
       } else {
         charge++;
-        spWrap.style.setProperty('--charge', charge / ROUND);
         el.querySelectorAll('.battery i').forEach((b, i) => b.classList.toggle('on', i < charge));
+        chargeSpeaker();
         if (charge >= ROUND) later(() => finish(false), 700);
         else later(show, 650);
       }
@@ -201,6 +206,20 @@ export function playScreen({ mode, poolId }) {
     store.save();
   }
 
+  // Elke goede som laadt de PartyBox een stukje op.
+  function chargeSpeaker() {
+    if (isPlug(sp)) return;
+    const before = battery.level(sp.id);
+    if (before >= 100) return;
+    const now = battery.charge(sp.id, battery.PER_SUM);
+    spWrap.style.setProperty('--charge', now / 100);
+    sfx.charge(now);
+    const spark = h('<div class="spark">⚡</div>');
+    el.querySelector('.speaker-col').appendChild(spark);
+    setTimeout(() => spark.remove(), 700);
+    if (now >= 100) { sfx.full(); later(() => say('Vol! 🔋 De PartyBox is helemaal opgeladen!', 'wow'), 300); }
+  }
+
   function finish(quit) {
     if (ended) return;
     ended = true;
@@ -209,6 +228,7 @@ export function playScreen({ mode, poolId }) {
     if (quit && correct === 0) { go('home'); return; }
     const lines = [`${correct} goed`, `+${fmt(earned)} ⚡ verdiend`];
     let title = quit ? 'Goed gedaan!' : 'Partybox opgeladen!';
+    if (!turbo && !isPlug(sp)) lines.unshift(`🔋 Batterij: ${Math.round(battery.level(sp.id))}%`);
     if (turbo) {
       const prev = store.get().records[poolId] || 0;
       if (!quit) title = `${correct} in één minuut!`;
@@ -226,6 +246,7 @@ export function playScreen({ mode, poolId }) {
       big: goalReached,
       newSpeakers,
       messages,
+      powerOn: !turbo && !quit,
       again: quit ? null : { screen: 'play', args: { mode, poolId } },
     });
   }
@@ -263,10 +284,14 @@ export function playScreen({ mode, poolId }) {
   }
 
   if (turbo) {
-    say('Klaar voor de Turbo-Minuut?');
+    say(battery.isEmpty(sp.id) ? 'Turbo-Minuut! (PartyBox leeg: geen muziek 🪫)' : 'Klaar voor de Turbo-Minuut?');
     later(startTurbo, 600);
   } else {
-    say(pick(['Laden maar!', 'Help je mij de speaker op te laden?', 'Elke goede som = meer bas!']));
+    const lv = battery.level(sp.id);
+    if (isPlug(sp)) say('De Ultimate zit aan de stekker 🔌 Die is altijd vol!');
+    else if (lv <= 0) say('Oh nee, de PartyBox is leeg! Help je mij hem op te laden?', 'sad');
+    else if (lv >= 100) say('De PartyBox is al vol! 🔋 Wissel van speaker om een andere op te laden.');
+    else say(pick(['Laden maar! 🔌', 'Elke goede som = meer stroom!', 'Help je mij de PartyBox op te laden?']));
     later(show, 400);
   }
 

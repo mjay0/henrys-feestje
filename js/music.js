@@ -13,6 +13,36 @@ let verbIn = null;
 let pulse = null;
 let musicOn = true;
 const VOLUME = 0.6;
+let toneHP = null;
+let toneShelf = null;
+let powerLP = null;
+let toneGain = null;
+let tier = 1;
+let maxLevel = 5;
+let gate = null;     // mag er muziek spelen? (batterij)
+
+// Speaker-klank per grootte (tier 1 = klein, 5 = Ultimate).
+const TONE = {
+  1: { hp: 140, shelf: 0, gain: 0.85, max: 4 },
+  2: { hp: 90, shelf: 1.5, gain: 0.92, max: 5 },
+  3: { hp: 55, shelf: 3, gain: 1, max: 5 },
+  4: { hp: 35, shelf: 4.5, gain: 1.05, max: 5 },
+  5: { hp: 25, shelf: 6, gain: 1.1, max: 5 },
+};
+
+function applyTone() {
+  const t = TONE[tier] || TONE[1];
+  maxLevel = t.max;
+  if (!toneHP) return;
+  toneHP.frequency.setTargetAtTime(t.hp, ctx.currentTime, 0.05);
+  toneShelf.gain.setTargetAtTime(t.shelf, ctx.currentTime, 0.05);
+  toneGain.gain.setTargetAtTime(t.gain, ctx.currentTime, 0.05);
+}
+
+export function setTone(n) { tier = n; applyTone(); }
+
+// gate() geeft false als de batterij leeg is: dan geen muziek.
+export function setGate(fn) { gate = fn; }
 
 function setup() {
   const a = getAudio();
@@ -21,7 +51,22 @@ function setup() {
   ctx = a.ctx;
   out = ctx.createGain();
   out.gain.value = 0;
-  out.connect(a.master);
+  // Klank van de speaker: kleine speakers minder bas, grote meer.
+  toneHP = ctx.createBiquadFilter();
+  toneHP.type = 'highpass';
+  toneShelf = ctx.createBiquadFilter();
+  toneShelf.type = 'lowshelf';
+  toneShelf.frequency.value = 120;
+  powerLP = ctx.createBiquadFilter();
+  powerLP.type = 'lowpass';
+  powerLP.frequency.value = 20000;
+  toneGain = ctx.createGain();
+  out.connect(toneHP);
+  toneHP.connect(toneShelf);
+  toneShelf.connect(powerLP);
+  powerLP.connect(toneGain);
+  toneGain.connect(a.master);
+  applyTone();
   duck = ctx.createGain();
   duck.connect(out);
   dry = ctx.createGain();
@@ -365,15 +410,38 @@ let cur = null;
 let timer = null;
 let stopTimer = null;
 
-export function play(id, { mode = 'live', level = 2, onKick = null } = {}) {
-  if (!setup()) return;
+// drop: in 'party' meteen bij de drop beginnen (na het opladen).
+// Geeft false terug als er geen muziek mag (batterij leeg).
+export function play(id, { mode = 'live', level = 2, onKick = null, drop = false } = {}) {
+  if (!setup()) return false;
   stopNow();
+  if (gate && !gate()) return false;
   const s = findSong(id);
-  cur = { s, p: prepare(s), mode, level, prevLevel: level, tempo: 1, step: 0, next: ctx.currentTime + 0.08, onKick };
+  const step = mode === 'party' && drop ? 32 : 0;
+  cur = { s, p: prepare(s), mode, level, prevLevel: level, tempo: 1, step, next: ctx.currentTime + 0.08, onKick };
+  powerLP.frequency.cancelScheduledValues(ctx.currentTime);
+  powerLP.frequency.setValueAtTime(20000, ctx.currentTime);
   out.gain.cancelScheduledValues(ctx.currentTime);
   out.gain.setValueAtTime(out.gain.value, ctx.currentTime);
   out.gain.linearRampToValueAtTime(musicOn ? VOLUME : 0, ctx.currentTime + 0.4);
   timer = setInterval(tick, 25);
+  return true;
+}
+
+// Batterij leeg: muziek "valt uit" (trager, doffer, stil).
+export function powerDown() {
+  if (!cur || !ctx) return;
+  const c = cur;
+  const t = ctx.currentTime;
+  powerLP.frequency.cancelScheduledValues(t);
+  powerLP.frequency.setValueAtTime(12000, t);
+  powerLP.frequency.exponentialRampToValueAtTime(120, t + 1.8);
+  out.gain.cancelScheduledValues(t);
+  out.gain.setValueAtTime(out.gain.value, t);
+  out.gain.linearRampToValueAtTime(0, t + 2);
+  c.onKick = null;
+  const slow = setInterval(() => { if (cur === c) c.tempo = Math.max(0.35, c.tempo * 0.88); }, 100);
+  stopTimer = setTimeout(() => { clearInterval(slow); if (cur === c) stopNow(); }, 2100);
 }
 
 export function setLevel(n) { if (cur) cur.level = Math.max(1, Math.min(5, n)); }
@@ -416,7 +484,7 @@ function scheduleStep(t, sd) {
   const bi = bar % s.chords.length;
   const chord = s.chords[bi];
   const pb = cur.mode === 'party' ? partyBar(bar) : null;
-  const L = pb ? pb.l : cur.level;
+  const L = Math.min(maxLevel, pb ? pb.l : cur.level);
   const build = pb ? pb.build : false;
   const kit = s.kit;
   const hit = (pat) => pat && pat[i] !== '.' && pat[i] !== undefined;

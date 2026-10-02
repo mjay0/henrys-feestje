@@ -132,6 +132,32 @@ export const sfx = {
     noise({ dur: 0.4, vol: 0.1, freq: 3000, sweepTo: 9000 });
   },
   pop() { tone({ freq: 400, slideTo: 900, type: 'sine', dur: 0.08, vol: 0.12 }); },
+  lowBattery() {
+    tone({ freq: 880, type: 'square', dur: 0.09, vol: 0.08 });
+    tone({ freq: 880, type: 'square', at: 0.16, dur: 0.09, vol: 0.08 });
+  },
+  batteryEmpty() {
+    [72, 67, 63, 60].forEach((m, i) => tone({ freq: midi(m), type: 'triangle', at: 0.3 + i * 0.16, dur: 0.18, vol: 0.14 }));
+  },
+  // Oplaad-zoem die hoger wordt naarmate de batterij voller is.
+  charge(pct = 50) {
+    const f = 300 + pct * 6;
+    tone({ freq: f, slideTo: f * 1.5, type: 'sawtooth', dur: 0.25, vol: 0.05 });
+    tone({ freq: f * 2, slideTo: f * 3, type: 'sine', at: 0.05, dur: 0.2, vol: 0.08 });
+  },
+  full() {
+    [72, 76, 79, 84].forEach((m, i) => tone({ freq: midi(m), type: 'triangle', at: i * 0.08, dur: 0.25, vol: 0.15 }));
+  },
+  // Speaker landt op het podium: BOEM.
+  boom() {
+    tone({ freq: 120, slideTo: 35, dur: 0.6, vol: 0.9, attack: 0.002 });
+    noise({ dur: 0.9, vol: 0.2, type: 'lowpass', freq: 900, sweepTo: 120 });
+    noise({ at: 0.02, dur: 1.2, vol: 0.12, freq: 5000 });
+  },
+  powerOn() {
+    tone({ freq: 60, slideTo: 240, type: 'sawtooth', dur: 0.5, vol: 0.08 });
+    tone({ freq: midi(84), type: 'sine', at: 0.45, dur: 0.15, vol: 0.12 });
+  },
   // Boze kat: "MIAUW!" (toon door een bewegend filter) + blazen.
   meow() {
     if (!ctx) return;

@@ -56,15 +56,22 @@ export function henrySVG(color = '#d7262e', { mood = 'happy', hat = false } = {}
 </svg>`;
 }
 
-// Lichtkleuren die rondlopen (SMIL-animatie, werkt in Safari).
-const LIGHT_CYCLE = '#ff2bd6;#7b2bff;#00d0ff;#2bff88;#ffd400;#ff6a00;#ff2bd6';
+// Lichtshows: kleuren die rondlopen (SMIL-animatie, werkt in Safari).
+export const LIGHT_SHOWS = {
+  regenboog: { name: 'Regenboog', emoji: '🌈', cycle: '#ff2bd6;#7b2bff;#00d0ff;#2bff88;#ffd400;#ff6a00;#ff2bd6' },
+  vuur: { name: 'Vuur', emoji: '🔥', cycle: '#ff2a00;#ff6a00;#ffb000;#ffe14d;#ff6a00;#ff2a00' },
+  oceaan: { name: 'Oceaan', emoji: '🌊', cycle: '#0044ff;#00a2ff;#00e5ff;#6a5cff;#00a2ff;#0044ff' },
+  neon: { name: 'Neon', emoji: '💚', cycle: '#2bff88;#b6ff00;#00ffd0;#2bff88' },
+};
+const LIGHT_CYCLE = LIGHT_SHOWS.regenboog.cycle;
+let cyc = LIGHT_CYCLE; // lichtshow van de speaker die nu getekend wordt
 
 function woofer(cx, cy, r, s, i) {
-  const anim = `<animate attributeName="stroke" values="${LIGHT_CYCLE}" dur="${3 + i}s" repeatCount="indefinite"/>`;
+  const anim = `<animate attributeName="stroke" values="${cyc}" dur="${3 + i}s" repeatCount="indefinite"/>`;
   let ring = `<circle class="lights" cx="${cx}" cy="${cy}" r="${r + 7}" fill="none" stroke="#ff2bd6" stroke-width="6">${anim}</circle>`;
   if (s.lights !== 'ring') {
     ring += `<circle class="lights" cx="${cx}" cy="${cy}" r="${r + 15}" fill="none" stroke="#00d0ff" stroke-width="3" stroke-dasharray="6 6">
-      <animate attributeName="stroke" values="${LIGHT_CYCLE}" dur="${2 + i}s" begin="-1s" repeatCount="indefinite"/>
+      <animate attributeName="stroke" values="${cyc}" dur="${2 + i}s" begin="-1s" repeatCount="indefinite"/>
       <animateTransform attributeName="transform" type="rotate" from="0 ${cx} ${cy}" to="360 ${cx} ${cy}" dur="6s" repeatCount="indefinite"/></circle>`;
   }
   return `${ring}
@@ -76,7 +83,8 @@ function woofer(cx, cy, r, s, i) {
   </g>`;
 }
 
-export function speakerSVG(s) {
+export function speakerSVG(s, show = 'regenboog') {
+  cyc = (LIGHT_SHOWS[show] || LIGHT_SHOWS.regenboog).cycle;
   const id = `s${uid++}`;
   const tower = s.shape === 'tower';
   const W = tower ? (s.big ? 220 : 190) : 200;
@@ -90,8 +98,8 @@ export function speakerSVG(s) {
     woofers += woofer(W / 2, bodyY + bh * 0.55, bw * 0.3, s, 0);
   }
   const strobes = s.lights === 'panel'
-    ? `<rect class="lights" x="${bodyX + 6}" y="${bodyY + 8}" width="8" height="${bh - 16}" rx="4" fill="#ff2bd6"><animate attributeName="fill" values="${LIGHT_CYCLE}" dur="2.5s" repeatCount="indefinite"/></rect>
-       <rect class="lights" x="${bodyX + bw - 14}" y="${bodyY + 8}" width="8" height="${bh - 16}" rx="4" fill="#00d0ff"><animate attributeName="fill" values="${LIGHT_CYCLE}" dur="2.5s" begin="-1.2s" repeatCount="indefinite"/></rect>`
+    ? `<rect class="lights" x="${bodyX + 6}" y="${bodyY + 8}" width="8" height="${bh - 16}" rx="4" fill="#ff2bd6"><animate attributeName="fill" values="${cyc}" dur="2.5s" repeatCount="indefinite"/></rect>
+       <rect class="lights" x="${bodyX + bw - 14}" y="${bodyY + 8}" width="8" height="${bh - 16}" rx="4" fill="#00d0ff"><animate attributeName="fill" values="${cyc}" dur="2.5s" begin="-1.2s" repeatCount="indefinite"/></rect>`
     : '';
   const tweeter = s.woofers === 1
     ? `<rect x="${W / 2 - 34}" y="${bodyY + 14}" width="68" height="16" rx="8" fill="#1b1b22" stroke="#33333c" stroke-width="2"/>`
@@ -108,7 +116,7 @@ export function speakerSVG(s) {
        <rect x="${bodyX + bw - 40}" y="${bodyY + bh - 4}" width="24" height="12" rx="4" fill="#111"/>`;
   const pads = s.pads
     ? `<rect x="${bodyX + 20}" y="${bodyY + 6}" width="${bw - 40}" height="10" rx="3" fill="#2a2a33"/>
-       ${[0, 1, 2, 3, 4, 5].map((i) => `<rect class="lights" x="${bodyX + 26 + i * ((bw - 52) / 6)}" y="${bodyY + 8}" width="${(bw - 52) / 6 - 4}" height="6" rx="2" fill="#ffd400"><animate attributeName="fill" values="${LIGHT_CYCLE}" dur="1.5s" begin="-${i * 0.25}s" repeatCount="indefinite"/></rect>`).join('')}`
+       ${[0, 1, 2, 3, 4, 5].map((i) => `<rect class="lights" x="${bodyX + 26 + i * ((bw - 52) / 6)}" y="${bodyY + 8}" width="${(bw - 52) / 6 - 4}" height="6" rx="2" fill="#ffd400"><animate attributeName="fill" values="${cyc}" dur="1.5s" begin="-${i * 0.25}s" repeatCount="indefinite"/></rect>`).join('')}`
     : '';
   return `<svg class="speaker" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" aria-label="${s.name}">
   <defs><linearGradient id="${id}g" x1="0" x2="1">

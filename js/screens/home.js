@@ -1,8 +1,9 @@
 // Startscherm, keuzescherm en het allereerste "Zet de party aan!" scherm.
 import { h, tap, go, pick, fmt } from '../ui.js';
 import { sfx, unlock } from '../audio.js';
-import { henrySVG, speakerSVG } from '../art.js';
-import { activeSpeaker, activeHenry, nextSpeaker, SPEAKERS, ROOMS, roomOpen, room as findRoom, digitsOpen, DIGITS_HOW } from '../rewards.js';
+import { henrySVG } from '../art.js';
+import * as battery from '../battery.js';
+import { activeSpeaker, activeHenry, nextSpeaker, SPEAKERS, speakerArt, isPlug, ROOMS, roomOpen, room as findRoom, digitsOpen, DIGITS_HOW } from '../rewards.js';
 import { progress, MAX_BOX, mastery } from '../engine.js';
 import { MODULES } from '../modules/index.js';
 import * as store from '../store.js';
@@ -16,11 +17,19 @@ const HELLO = [
   'Wie gaat er vandaag een record halen?',
 ];
 
+function greeting(sp) {
+  if (isPlug(sp)) return pick(HELLO);
+  const lv = battery.level(sp.id);
+  if (lv <= 0) return 'Oh nee, de PartyBox is leeg! 🪫 Laden we hem op?';
+  if (lv <= 20) return 'De batterij is bijna leeg… Even opladen?';
+  return pick(HELLO);
+}
+
 export function startScreen() {
   const el = h(`<div class="start">
     <div class="start-stage">
       <div class="henry-wrap bounce">${henrySVG(activeHenry().color, { hat: true })}</div>
-      <div class="speaker-wrap" style="--charge:0.3">${speakerSVG(activeSpeaker())}</div>
+      <div class="speaker-wrap" style="--charge:0.3">${speakerArt(activeSpeaker())}</div>
     </div>
     <h1 class="logo">Henry's <span>Feestje</span></h1>
     <button class="btn primary huge">🎉 Zet de party aan!</button>
@@ -56,8 +65,11 @@ export function homeScreen() {
     </header>
     <div class="home">
       <div class="home-stage">
-        <div class="henry-wrap"><div class="bubble pop">${pick(HELLO)}</div><div class="henry-holder">${henrySVG(hn.color)}</div></div>
-        <div class="speaker-wrap" style="--charge:0.6">${speakerSVG(sp)}</div>
+        <div class="henry-wrap"><div class="bubble pop">${greeting(sp)}</div><div class="henry-holder">${henrySVG(hn.color)}</div></div>
+        <div class="speaker-col">
+          <div class="speaker-wrap" style="--charge:${battery.level(sp.id) / 100}">${speakerArt(sp)}</div>
+          ${battery.badge(sp.id)}
+        </div>
       </div>
       <div class="next">
         ${nxt
@@ -67,7 +79,7 @@ export function homeScreen() {
       </div>
       <div class="menu">
         <button class="btn race big wide" data-go="race">🧹 Stofzuig-Race<small>Zuig het goede antwoord op!</small></button>
-        <button class="btn primary big" data-go="practice">🔋 Opladen<small>Oefenen met hulp</small></button>
+        <button class="btn primary big ${!isPlug(sp) && battery.level(sp.id) <= 20 ? 'needs' : ''}" data-go="practice">🔋 PartyBox Opladen<small>${isPlug(sp) ? 'Oefenen met hulp' : battery.level(sp.id) <= 0 ? 'Leeg! Laad op voor muziek' : 'Laad op voor muziek'}</small></button>
         <button class="btn turbo big" data-go="turbo">⏱️ Turbo-Minuut<small>1 minuut, zo snel mogelijk</small></button>
         <button class="btn" data-go="collection">🔊 Mijn speakers</button>
         <button class="btn" data-go="stars">⭐ Mijn sterren</button>
@@ -91,6 +103,11 @@ export function homeScreen() {
   }, { sound: false });
   const spw = el.querySelector('.speaker-wrap');
   tap(spw, () => {
+    if (battery.isEmpty(sp.id)) {
+      sfx.batteryEmpty();
+      bubble.textContent = 'De PartyBox is leeg! Laad hem op bij 🔋 Opladen.';
+      return;
+    }
     sfx.correct(0);
     spw.classList.remove('thump'); void spw.offsetWidth; spw.classList.add('thump');
   }, { sound: false });

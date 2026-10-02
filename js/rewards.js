@@ -2,6 +2,7 @@
 import * as store from './store.js';
 import { MAX_BOX } from './engine.js';
 import { SONGS } from './songs.js';
+import { speakerSVG } from './art.js';
 
 // Van klein naar groot. `w` = totaal benodigde watts.
 // shape: compact | tower ; woofers: 1 of 2 ; lights: ring | strobe | panel
@@ -21,6 +22,23 @@ export const SPEAKERS = [
 ];
 
 export const speaker = (id) => SPEAKERS.find((s) => s.id === id) || SPEAKERS[0];
+
+// De Ultimate werkt (net als echt) alleen met een stekker: nooit leeg.
+export const isPlug = (s) => s.id === 'ultimate';
+// Hoe lang een volle batterij muziek kan maken (seconden): groter = langer.
+export const capacity = (s) => ({ 1: 360, 2: 420, 3: 500, 4: 600 }[s.tier] || 600);
+
+// Speakerkaart: balkjes van 1 t/m 5.
+export function stats(s) {
+  return {
+    bas: s.tier,
+    licht: Math.min(5, { ring: 2, strobe: 3, panel: 4 }[s.lights] + (s.pads ? 1 : 0)),
+    batterij: isPlug(s) ? 5 : s.tier,
+  };
+}
+
+export const lightsOf = (id) => store.get().lights[id] || 'regenboog';
+export function speakerArt(s) { return speakerSVG(s, lightsOf(s.id)); }
 export const activeSpeaker = () => speaker(store.get().speaker);
 export const isUnlocked = (s) => store.get().watts >= s.w;
 export const nextSpeaker = () => SPEAKERS.find((s) => !isUnlocked(s)) || null;

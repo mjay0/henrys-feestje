@@ -14,6 +14,7 @@ Runs entirely in the browser, offline too (add it to the iPad home screen). Prog
 - `js/screens/`: the screens.
 - `js/audio.js`: sound effects, generated live with Web Audio.
 - `js/music.js` + `js/songs.js`: the music engine and the songs (written as notes). Add a song by adding an entry to `SONGS`.
+- `js/battery.js`: PartyBox battery per speaker. Music drains it, PartyBox Opladen charges it, empty = no music.
 - `js/screens/race.js`: the Stofzuig-Race (drag Henry with your finger to the correct dust ball; Cijfer-modus = suck up the digits in order).
 
 Testing locally: serve the folder with any static server, e.g. `npx serve .`

@@ -3,10 +3,11 @@
 import { h, tap, go, floatText, pick, fmt } from '../ui.js';
 import { sfx } from '../audio.js';
 import * as music from '../music.js';
-import { henrySVG, speakerSVG, furnitureSVG, catSVG } from '../art.js';
+import { henrySVG, furnitureSVG, catSVG } from '../art.js';
+import * as battery from '../battery.js';
 import { makePicker, record } from '../engine.js';
 import { findPool, afterRecord } from '../modules/index.js';
-import { activeHenry, activeSpeaker, addWatts, room as findRoom, ROOMS, roomOpen, digitsOpen } from '../rewards.js';
+import { activeHenry, activeSpeaker, speakerArt, addWatts, room as findRoom, ROOMS, roomOpen, digitsOpen } from '../rewards.js';
 import * as store from '../store.js';
 
 const RACE_MS = 90_000;
@@ -107,7 +108,7 @@ export function raceScreen({ poolId }) {
     <div class="race-q"><span class="rq-text"></span> = <span class="rq-ans"></span></div>
     <div class="arena">
       <div class="powers"></div>
-      ${(LAYOUT[rm.id] || []).map((p) => `<div class="prop prop-${p.kind}">${p.kind === 'speaker' ? speakerSVG(activeSpeaker()) : furnitureSVG(p.kind)}</div>`).join('')}
+      ${(LAYOUT[rm.id] || []).map((p) => `<div class="prop prop-${p.kind}">${p.kind === 'speaker' ? speakerArt(activeSpeaker()) : furnitureSVG(p.kind)}</div>`).join('')}
       <div class="james walk"><div class="james-flip">${catSVG()}</div><div class="bubble"></div></div>
       <div class="racer"><div class="racer-flip">${henrySVG(hn.color)}</div><div class="bubble"></div></div>
     </div>
@@ -650,7 +651,8 @@ export function raceScreen({ poolId }) {
     ov.classList.remove('hidden');
     ov.innerHTML = `<div class="race-intro">${digits ? '🔢 Cijfer-modus' : `${rm.emoji} ${rm.name}`}
       <small>Sleep Henry naar het goede antwoord!</small>
-      <small class="cat-warn">🐱 Pas op: niet tegen kat James aan botsen!</small></div>`;
+      <small class="cat-warn">🐱 Pas op: niet tegen kat James aan botsen!</small>
+      ${battery.isEmpty(activeSpeaker().id) ? '<small class="cat-warn">🪫 PartyBox leeg: geen muziek. Laad hem op bij 🔋 Opladen!</small>' : ''}</div>`;
     let n = 3;
     const tick = () => {
       if (n > 0) { ov.textContent = n; sfx.tick(); n--; later(tick, 700); return; }

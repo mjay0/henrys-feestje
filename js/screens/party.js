@@ -2,12 +2,14 @@
 import { h, tap, go, confetti } from '../ui.js';
 import { sfx } from '../audio.js';
 import * as music from '../music.js';
-import { henrySVG, speakerSVG } from '../art.js';
-import { activeSpeaker, activeHenry, checkHenrys, newSongs } from '../rewards.js';
+import { henrySVG } from '../art.js';
+import { activeSpeaker, activeHenry, checkHenrys, newSongs, speakerArt } from '../rewards.js';
+import * as battery from '../battery.js';
 import * as store from '../store.js';
 
-export function partyScreen({ title, lines = [], big = false, newSpeakers = [], messages = [], again = null }) {
+export function partyScreen({ title, lines = [], big = false, newSpeakers = [], messages = [], again = null, powerOn = false }) {
   const sp = activeSpeaker();
+  const empty = battery.isEmpty(sp.id);
   const hn = activeHenry();
   const queue = [
     ...newSpeakers.map((s) => ({ type: 'speaker', s })),
@@ -24,13 +26,14 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
     const st = store.currentStreak();
     if (st > 1) lines.push(`🔥 ${st} dagen op rij!`);
   }
+  if (empty) lines.push('🪫 De PartyBox is leeg, dus geen muziek… Laad hem op bij 🔋 Opladen!');
 
-  const el = h(`<div class="party ${big ? 'big' : ''}">
+  const el = h(`<div class="party ${big ? 'big' : ''} ${empty ? 'dark' : ''}">
     <div class="disco"></div>
     <div class="party-stage">
-      <div class="speaker-wrap" style="--charge:1">${speakerSVG(sp)}</div>
-      <div class="henry-wrap dance">${henrySVG(hn.color, { mood: 'wow', hat: true })}</div>
-      ${big ? `<div class="speaker-wrap mirror" style="--charge:1">${speakerSVG(sp)}</div>` : ''}
+      <div class="speaker-wrap" style="--charge:${empty || powerOn ? 0 : 1}">${speakerArt(sp)}</div>
+      <div class="henry-wrap ${empty ? '' : 'dance'}">${henrySVG(hn.color, empty ? { mood: 'sad' } : { mood: 'wow', hat: true })}</div>
+      ${big ? `<div class="speaker-wrap mirror" style="--charge:${empty || powerOn ? 0 : 1}">${speakerArt(sp)}</div>` : ''}
     </div>
     <div class="party-card">
       <h1>${title}</h1>
@@ -41,16 +44,38 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
 
   const card = el.querySelector('.party-card');
   const wraps = el.querySelectorAll('.speaker-wrap');
-  music.play(store.get().song, {
-    mode: 'party',
-    onKick: () => {
-      wraps.forEach((w) => { w.classList.remove('thump'); void w.offsetWidth; w.classList.add('thump'); });
-      el.classList.toggle('flash');
-    },
-  });
-  timers.push(setTimeout(() => music.stop(2), big ? 50_000 : 25_000));
-  confetti(el, big ? 140 : 70);
-  if (big) timers.push(setTimeout(() => confetti(el, 100), 2500));
+  const onKick = () => {
+    wraps.forEach((w) => { w.classList.remove('thump'); void w.offsetWidth; w.classList.add('thump'); });
+    el.classList.toggle('flash');
+  };
+  function startParty(drop) {
+    music.play(store.get().song, { mode: 'party', onKick, drop });
+    timers.push(setTimeout(() => music.stop(2), big ? 50_000 : 25_000));
+    confetti(el, big ? 140 : 70);
+    if (big) timers.push(setTimeout(() => confetti(el, 100), 2500));
+  }
+  if (empty) {
+    sfx.batteryEmpty();
+  } else if (powerOn) {
+    // Net opgeladen: aftellen, lichten aan, meteen de drop!
+    const ov = h('<div class="overlay countdown power"></div>');
+    el.appendChild(ov);
+    let n = 3;
+    const tick = () => {
+      if (n > 0) { ov.textContent = n; sfx.tick(); n--; timers.push(setTimeout(tick, 600)); return; }
+      ov.textContent = '💡 AAN!';
+      sfx.powerOn();
+      timers.push(setTimeout(() => {
+        ov.remove();
+        wraps.forEach((w) => w.style.setProperty('--charge', 1));
+        el.classList.add('lights-on');
+        startParty(true);
+      }, 450));
+    };
+    timers.push(setTimeout(tick, 300));
+  } else {
+    startParty(false);
+  }
 
   function actions(btns) {
     const a = card.querySelector('.actions');
@@ -66,7 +91,8 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
   function endButtons() {
     const btns = [];
     if (again) btns.push(['🔁 Nog een keer', () => go(again.screen, again.args), 'primary']);
-    btns.push(['🏠 Naar huis', () => go('home'), again ? '' : 'primary']);
+    if (empty && !(again && again.args && again.args.mode === 'practice')) btns.unshift(['🔋 Opladen', () => go('pick', { mode: 'practice' }), 'primary']);
+    btns.push(['🏠 Naar huis', () => go('home'), again || empty ? '' : 'primary']);
     actions(btns);
   }
 
@@ -77,7 +103,7 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
     confetti(el, 80);
     if (item.type === 'speaker') {
       card.innerHTML = `<div class="reveal"><div class="tag">Nieuwe speaker vrijgespeeld!</div>
-        <div class="speaker-wrap big-reveal" style="--charge:1">${speakerSVG(item.s)}</div>
+        <div class="speaker-wrap big-reveal" style="--charge:1">${speakerArt(item.s)}</div>
         <h1>${item.s.name}</h1><div class="actions"></div></div>`;
       actions([
         ['🔊 Zet hem aan!', () => { store.get().speaker = item.s.id; store.save(); reveal(); }, 'primary'],
@@ -110,7 +136,7 @@ export function partyScreen({ title, lines = [], big = false, newSpeakers = [], 
   timers.push(setTimeout(() => {
     if (queue.length) actions([['Verder ➜', reveal, 'primary']]);
     else endButtons();
-  }, big ? 3500 : 1800));
+  }, powerOn ? 3200 : big ? 3500 : 1800));
 
   return {
     el,

@@ -35,6 +35,8 @@ const fresh = () => ({
   race: { played: 0, best: {}, bestAny: 0 },
   raceRoom: 'woonkamer',
   raceDigits: false,       // Cijfer-modus aan/uit
+  battery: {},             // speaker-id -> batterij % (ontbreekt = vol)
+  lights: {},              // speaker-id -> gekozen lichtshow
   settings: { sound: true, music: true },
 });
 
